@@ -1,5 +1,8 @@
--- Enable UUID extension
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+-- Enable pgcrypto extension for gen_random_uuid()
+CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+
+-- Enable pgvector extension for vector embeddings (optional, for semantic search)
+CREATE EXTENSION IF NOT EXISTS "vector";
 
 -- Users table (extends Supabase auth.users)
 CREATE TABLE public.users (
@@ -12,7 +15,7 @@ CREATE TABLE public.users (
 
 -- Households
 CREATE TABLE public.households (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name TEXT NOT NULL,
   created_by UUID REFERENCES public.users(id) ON DELETE CASCADE,
   created_at TIMESTAMPTZ DEFAULT NOW(),
@@ -21,7 +24,7 @@ CREATE TABLE public.households (
 
 -- Household members (many-to-many)
 CREATE TABLE public.household_members (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   household_id UUID REFERENCES public.households(id) ON DELETE CASCADE,
   user_id UUID REFERENCES public.users(id) ON DELETE CASCADE,
   role TEXT NOT NULL CHECK (role IN ('parent', 'child')),
@@ -32,7 +35,7 @@ CREATE TABLE public.household_members (
 
 -- Child profiles (additional data for children)
 CREATE TABLE public.child_profiles (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   household_id UUID REFERENCES public.households(id) ON DELETE CASCADE,
   user_id UUID REFERENCES public.users(id) ON DELETE CASCADE,
   display_name TEXT,
@@ -46,7 +49,7 @@ CREATE TABLE public.child_profiles (
 
 -- Brands
 CREATE TABLE public.brands (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name TEXT UNIQUE NOT NULL,
   logo_url TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW()
@@ -54,7 +57,7 @@ CREATE TABLE public.brands (
 
 -- Products
 CREATE TABLE public.products (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   brand_id UUID REFERENCES public.brands(id) ON DELETE SET NULL,
   name TEXT NOT NULL,
   category TEXT, -- e.g., 'cleanser', 'moisturizer', 'serum'
@@ -65,7 +68,7 @@ CREATE TABLE public.products (
 
 -- Barcodes (multiple per product)
 CREATE TABLE public.barcodes (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   product_id UUID REFERENCES public.products(id) ON DELETE CASCADE,
   ean_upc TEXT UNIQUE NOT NULL,
   source TEXT, -- 'manual', 'openfoodfacts', etc.
@@ -74,7 +77,7 @@ CREATE TABLE public.barcodes (
 
 -- Ingredients master list
 CREATE TABLE public.ingredients (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   inci_name TEXT UNIQUE NOT NULL, -- standardized INCI name
   common_name TEXT,
   family TEXT, -- 'retinoid', 'aha', 'bha', 'fragrance', 'alcohol', etc.
@@ -85,7 +88,7 @@ CREATE TABLE public.ingredients (
 
 -- Product ingredients (junction with order)
 CREATE TABLE public.product_ingredients (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   product_id UUID REFERENCES public.products(id) ON DELETE CASCADE,
   ingredient_id UUID REFERENCES public.ingredients(id) ON DELETE CASCADE,
   position INTEGER, -- order in ingredient list (1 = first)
@@ -96,7 +99,7 @@ CREATE TABLE public.product_ingredients (
 
 -- Scans (user scan history)
 CREATE TABLE public.scans (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   child_profile_id UUID REFERENCES public.child_profiles(id) ON DELETE CASCADE,
   product_id UUID REFERENCES public.products(id) ON DELETE SET NULL,
   raw_ocr_text TEXT, -- if OCR was used
@@ -106,7 +109,7 @@ CREATE TABLE public.scans (
 
 -- Approvals (parent approval/rejection of scans)
 CREATE TABLE public.approvals (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   scan_id UUID REFERENCES public.scans(id) ON DELETE CASCADE,
   parent_user_id UUID REFERENCES public.users(id) ON DELETE CASCADE,
   status TEXT NOT NULL CHECK (status IN ('approved', 'rejected')),
@@ -117,7 +120,7 @@ CREATE TABLE public.approvals (
 
 -- Rules (ingredient safety rules by age/skin type)
 CREATE TABLE public.rules (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   ingredient_family TEXT NOT NULL,
   age_min INTEGER, -- minimum age (null = no restriction)
   age_max INTEGER, -- maximum age (null = no restriction)
@@ -130,7 +133,7 @@ CREATE TABLE public.rules (
 
 -- Decisions (cached evaluation results)
 CREATE TABLE public.decisions (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   scan_id UUID REFERENCES public.scans(id) ON DELETE CASCADE,
   rating TEXT NOT NULL CHECK (rating IN ('safe', 'use_with_care', 'avoid')),
   reason_codes TEXT[], -- array of reason codes
@@ -143,7 +146,7 @@ CREATE TABLE public.decisions (
 
 -- Routines (AM/PM routines per child)
 CREATE TABLE public.routines (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   child_profile_id UUID REFERENCES public.child_profiles(id) ON DELETE CASCADE,
   period TEXT NOT NULL CHECK (period IN ('AM', 'PM')),
   created_at TIMESTAMPTZ DEFAULT NOW(),
@@ -153,7 +156,7 @@ CREATE TABLE public.routines (
 
 -- Routine items (products in a routine)
 CREATE TABLE public.routine_items (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   routine_id UUID REFERENCES public.routines(id) ON DELETE CASCADE,
   product_id UUID REFERENCES public.products(id) ON DELETE CASCADE,
   order_index INTEGER NOT NULL,
@@ -163,7 +166,7 @@ CREATE TABLE public.routine_items (
 
 -- Lessons (educational content)
 CREATE TABLE public.lessons (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   slug TEXT UNIQUE NOT NULL,
   title TEXT NOT NULL,
   body_md TEXT NOT NULL, -- markdown content
@@ -177,7 +180,7 @@ CREATE TABLE public.lessons (
 
 -- Lesson progress (user completion tracking)
 CREATE TABLE public.lesson_progress (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID REFERENCES public.users(id) ON DELETE CASCADE,
   lesson_id UUID REFERENCES public.lessons(id) ON DELETE CASCADE,
   status TEXT DEFAULT 'started' CHECK (status IN ('started', 'completed')),
@@ -188,7 +191,7 @@ CREATE TABLE public.lesson_progress (
 
 -- Achievements
 CREATE TABLE public.achievements (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   code TEXT UNIQUE NOT NULL, -- e.g., 'first_scan', 'streak_7'
   title TEXT NOT NULL,
   description TEXT,
@@ -198,7 +201,7 @@ CREATE TABLE public.achievements (
 
 -- User achievements (awarded badges)
 CREATE TABLE public.user_achievements (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID REFERENCES public.users(id) ON DELETE CASCADE,
   achievement_id UUID REFERENCES public.achievements(id) ON DELETE CASCADE,
   awarded_at TIMESTAMPTZ DEFAULT NOW(),

@@ -1,10 +1,17 @@
 import { View, Text, ScrollView, Pressable } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useEffect } from 'react';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
+import { testSupabaseConnection } from '../../src/lib/testConnection';
 
 export default function HomeScreen() {
   const router = useRouter();
+  
+  // Test Supabase connection on mount
+  useEffect(() => {
+    testSupabaseConnection();
+  }, []);
 
   return (
     <ScrollView className="flex-1 bg-cream">

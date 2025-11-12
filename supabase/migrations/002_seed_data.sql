@@ -19,7 +19,8 @@ INSERT INTO public.ingredients (inci_name, common_name, family, description) VAL
   ('Squalane', 'Squalane', 'emollient', 'Lightweight moisturizing oil'),
   ('Panthenol', 'Panthenol', 'vitamin', 'Pro-vitamin B5 that soothes skin'),
   ('Tocopherol', 'Vitamin E', 'antioxidant', 'Antioxidant that protects skin'),
-  ('Ascorbic Acid', 'Vitamin C', 'antioxidant', 'Brightening antioxidant');
+  ('Ascorbic Acid', 'Vitamin C', 'antioxidant', 'Brightening antioxidant'),
+  ('Petrolatum', 'Petrolatum', 'emollient', 'Occlusive moisturizer that seals in hydration');
 
 -- Seed rules (age-based safety guidelines)
 INSERT INTO public.rules (ingredient_family, age_min, age_max, rating, reason_code) VALUES
