@@ -5,7 +5,7 @@ import { StatusBar } from 'expo-status-bar';
 
 export default function RootLayout() {
   useEffect(() => {
-    // Add any root-level initialisation here later (Sentry, PostHog, etc.)
+    console.log('✅ Root layout mounted');
   }, []);
 
   return (
