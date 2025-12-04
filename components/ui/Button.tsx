@@ -1,5 +1,6 @@
-import { Pressable, Text, ActivityIndicator } from 'react-native';
+import { Pressable, Text, ActivityIndicator, StyleSheet, ViewStyle, TextStyle } from 'react-native';
 import { ReactNode } from 'react';
+import { colors, spacing, radii } from '../../src/theme/tokens';
 
 interface ButtonProps {
   children: ReactNode;
@@ -8,7 +9,7 @@ interface ButtonProps {
   size?: 'sm' | 'md' | 'lg';
   disabled?: boolean;
   loading?: boolean;
-  className?: string;
+  style?: ViewStyle;
 }
 
 export function Button({
@@ -18,49 +19,91 @@ export function Button({
   size = 'md',
   disabled = false,
   loading = false,
-  className = '',
+  style,
 }: ButtonProps) {
-  const baseClasses = 'rounded-pill items-center justify-center flex-row';
-  
-  const variantClasses = {
-    primary: 'bg-purple',
-    secondary: 'bg-yellow',
-    outline: 'bg-transparent border-2 border-purple',
-  };
-  
-  const sizeClasses = {
-    sm: 'px-4 py-2',
-    md: 'px-6 py-3',
-    lg: 'px-8 py-4',
-  };
-  
-  const textVariantClasses = {
-    primary: 'text-white',
-    secondary: 'text-black',
-    outline: 'text-purple',
-  };
-  
-  const textSizeClasses = {
-    sm: 'text-sm',
-    md: 'text-base',
-    lg: 'text-lg',
-  };
+  const buttonStyles = [
+    styles.base,
+    styles[`variant_${variant}`],
+    styles[`size_${size}`],
+    disabled && styles.disabled,
+    style,
+  ];
+
+  const textStyles = [
+    styles.text,
+    styles[`text_${variant}`],
+    styles[`textSize_${size}`],
+  ];
   
   return (
     <Pressable
       onPress={onPress}
       disabled={disabled || loading}
-      className={`${baseClasses} ${variantClasses[variant]} ${sizeClasses[size]} ${
-        disabled ? 'opacity-50' : ''
-      } ${className}`}
+      style={buttonStyles}
     >
       {loading ? (
-        <ActivityIndicator color={variant === 'primary' ? '#FDFDFD' : '#000000'} />
+        <ActivityIndicator color={variant === 'primary' ? colors.white : colors.black} />
       ) : (
-        <Text className={`font-semibold ${textVariantClasses[variant]} ${textSizeClasses[size]}`}>
+        <Text style={textStyles}>
           {children}
         </Text>
       )}
     </Pressable>
   );
 }
+
+const styles = StyleSheet.create({
+  base: {
+    borderRadius: radii.pill,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+  },
+  variant_primary: {
+    backgroundColor: colors.purple,
+  },
+  variant_secondary: {
+    backgroundColor: colors.yellow,
+  },
+  variant_outline: {
+    backgroundColor: 'transparent',
+    borderWidth: 2,
+    borderColor: colors.purple,
+  },
+  size_sm: {
+    paddingHorizontal: spacing[4],
+    paddingVertical: spacing[2],
+  },
+  size_md: {
+    paddingHorizontal: spacing[6],
+    paddingVertical: spacing[3],
+  },
+  size_lg: {
+    paddingHorizontal: spacing[8],
+    paddingVertical: spacing[4],
+  },
+  disabled: {
+    opacity: 0.5,
+  },
+  text: {
+    fontWeight: '600',
+  },
+  text_primary: {
+    color: colors.white,
+  },
+  text_secondary: {
+    color: colors.black,
+  },
+  text_outline: {
+    color: colors.purple,
+  },
+  textSize_sm: {
+    fontSize: 14,
+  },
+  textSize_md: {
+    fontSize: 16,
+  },
+  textSize_lg: {
+    fontSize: 18,
+  },
+});

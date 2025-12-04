@@ -1,16 +1,17 @@
+import 'react-native-gesture-handler';
 import { Stack } from 'expo-router';
-import { useEffect } from 'react';
-import { StatusBar } from 'expo-status-bar';
+import { AuthProvider } from '../contexts/AuthContext';
+import { ChildProfileProvider } from '../src/contexts/ChildProfileContext';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 export default function RootLayout() {
-  useEffect(() => {
-    console.log('✅ Root layout mounted');
-  }, []);
-
   return (
-    <>
-      <StatusBar style="dark" />
-      <Stack screenOptions={{ headerShown: false }} />
-    </>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <AuthProvider>
+        <ChildProfileProvider>
+          <Stack screenOptions={{ headerShown: false }} />
+        </ChildProfileProvider>
+      </AuthProvider>
+    </GestureHandlerRootView>
   );
 }

@@ -1,16 +1,28 @@
 {
   "expo": {
-    "name": "freshies-app",
+    "name": "Freshies",
     "slug": "freshies-app",
     "experiments": {
       "typedRoutes": true
+    },
+    "extra": {
+      "router": {
+        "unstable_settings": {
+          "ignore": [
+            "**/*-styles.tsx",
+            "**/api/**/*.ts"
+          ]
+        }
+      }
     },
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "scheme": "freshies",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
+    "updates": {
+      "enabled": false
+    },
     "splash": {
       "image": "./assets/splash.png",
       "resizeMode": "contain",
@@ -18,7 +30,12 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.freshies.app"
+      "bundleIdentifier": "com.freshies.app",
+      "usesAppleSignIn": true,
+      "infoPlist": {
+        "NSPhotoLibraryUsageDescription": "Freshies needs access to your photo library to scan product barcodes from existing images.",
+        "NSCameraUsageDescription": "Freshies needs camera access to scan product barcodes and take photos of ingredient lists."
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -26,11 +43,34 @@
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.CAMERA",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.RECORD_AUDIO"
+      ],
+      "package": "com.freshies.app"
     },
     "web": {
       "favicon": "./assets/favicon.png",
       "bundler": "metro"
-    }
+    },
+    "plugins": [
+      "expo-web-browser",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow Freshies to access your camera to scan product barcodes.",
+          "microphonePermission": false
+        }
+      ],
+      "expo-apple-authentication",
+      "expo-router"
+    ]
   }
 }

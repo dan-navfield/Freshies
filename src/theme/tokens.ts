@@ -1,14 +1,15 @@
 export const colors = {
-  // Primary palette (from design inspiration)
-  purple: '#A4193D', // Main brand purple/lilac
+  // Brand Colors
+  purple: '#8133F6',        // Ultraviolet Pulse
+  mint: '#3BDAD1',          // Electric Mist
+  cream: '#F4EBD4',         // Vanilla Dawn
+  deepPurple: '#3C1166',    // Quantum Night // Main brand purple/lilac
   yellow: '#FFDFB9', // Warm yellow/peach accent
   black: '#000000', // Strong contrast
-  cream: '#FFDFB9', // Soft background
   white: '#FDFDFD', // Pure white
   
   // Extended palette (original Freshies colors)
-  peach: '#FFD9C4',
-  mint: '#BFF2E6',
+  peach: '#FEB2A6',
   lemon: '#FFF8B7',
   lilac: '#E7D9FF',
   accent: '#FF698A',
@@ -17,11 +18,23 @@ export const colors = {
   bone: '#F8F2E8',
   charcoal: '#333333',
   
+  // Risk Scoring Colors (Bad to Good)
+  riskHigh: '#EF4444',      // Red - High concern
+  riskMedHigh: '#F97316',   // Orange - Medium-high concern
+  riskMedium: '#F59E0B',    // Amber - Medium concern
+  riskMedLow: '#FCD34D',    // Yellow - Medium-low concern
+  riskLow: '#84CC16',       // Lime - Low concern
+  riskVeryLow: '#10B981',   // Green - Very low concern
+  
   // Semantic colors
   success: '#BFF2E6',
   warning: '#FFDFB9',
   danger: '#FF698A',
   info: '#E7D9FF',
+  
+  // Additional UI colors
+  orange: '#FF9500',
+  red: '#FF3B30',
 };
 
 export const radii = { 
@@ -31,6 +44,7 @@ export const radii = {
   xl: 24,
   xxl: 32, // for hero cards
   pill: 9999, // for buttons and chips
+  full: 9999, // alias for pill
 };
 
 export const spacing = { 

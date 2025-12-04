@@ -1,22 +1,51 @@
-import { View } from 'react-native';
+import { View, StyleSheet, ViewStyle } from 'react-native';
 import { ReactNode } from 'react';
+import { colors, spacing, radii } from '../../src/theme/tokens';
 
 interface CardProps {
   children: ReactNode;
   variant?: 'default' | 'hero' | 'accent';
-  className?: string;
+  style?: ViewStyle;
 }
 
-export function Card({ children, variant = 'default', className = '' }: CardProps) {
-  const variantClasses = {
-    default: 'bg-white rounded-2xl p-4 shadow-sm',
-    hero: 'bg-black rounded-3xl p-6 shadow-lg',
-    accent: 'bg-yellow rounded-2xl p-4 shadow-sm',
-  };
+export function Card({ children, variant = 'default', style }: CardProps) {
+  const cardStyles = [
+    styles.base,
+    styles[`variant_${variant}`],
+    style,
+  ];
   
   return (
-    <View className={`${variantClasses[variant]} ${className}`}>
+    <View style={cardStyles}>
       {children}
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  base: {
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  variant_default: {
+    backgroundColor: colors.white,
+    borderRadius: radii.xxl,
+    padding: spacing[4],
+  },
+  variant_hero: {
+    backgroundColor: colors.black,
+    borderRadius: 48, // 3xl
+    padding: spacing[6],
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  variant_accent: {
+    backgroundColor: colors.yellow,
+    borderRadius: radii.xxl,
+    padding: spacing[4],
+  },
+});
