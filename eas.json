@@ -7,8 +7,7 @@
       "developmentClient": true,
       "distribution": "internal",
       "ios": {
-        "resourceClass": "m-medium",
-        "bundleIdentifier": "com.freshies.app.dev"
+        "resourceClass": "m-medium"
       },
       "env": {
         "APP_ENV": "development"
@@ -18,8 +17,7 @@
       "distribution": "internal",
       "channel": "preview",
       "ios": {
-        "resourceClass": "m-medium",
-        "bundleIdentifier": "com.freshies.app.preview"
+        "resourceClass": "m-medium"
       },
       "env": {
         "APP_ENV": "staging"
