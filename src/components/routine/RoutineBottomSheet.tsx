@@ -5,7 +5,7 @@ import { colors, spacing, radii } from '../../theme/tokens';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import { useChildProfile } from '../../contexts/ChildProfileContext';
-import FreshieCamera from './FreshieCamera';
+import FreshieCamera from '../camera/FreshieCamera';
 import RoutineGuideModal from './RoutineGuideModal';
 import RoutineCompletionCelebration from './RoutineCompletionCelebration';
 import { routineService } from '../../services/routineService';
