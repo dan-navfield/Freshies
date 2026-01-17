@@ -2,8 +2,8 @@ import { View, Text, TouchableOpacity, ScrollView, StyleSheet } from 'react-nati
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { Sparkles, Users, Camera, BookOpen } from 'lucide-react-native';
-import { supabase } from '../../lib/supabase';
-import { useAuth } from '../../contexts/AuthContext';
+import { supabase } from '../../src/lib/supabase';
+import { useAuth } from '../../src/contexts/AuthContext';
 import { colors, spacing, radii } from '../../src/theme/tokens';
 
 export default function ParentWelcomeScreen() {

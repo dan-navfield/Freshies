@@ -4,8 +4,57 @@
  */
 
 import { ChildProfile } from '../../types/child';
+import { isCapabilityPaused, loadActivePromptTemplate } from '../config/promptLoader';
 
 const OPENAI_API_KEY = process.env.EXPO_PUBLIC_OPENAI_API_KEY;
+const MISTRAL_API_KEY = process.env.MISTRAL_API_KEY || process.env.EXPO_PUBLIC_MISTRAL_API_KEY;
+const MISTRAL_BASE_URL = 'https://api.mistral.ai/v1/chat/completions';
+
+const AI_CAPABILITY_KEY = 'guided_routine_builder';
+
+async function callMistral(
+  messages: Array<{ role: string; content: string }>,
+  options: any = {}
+) {
+  if (!MISTRAL_API_KEY) {
+    throw new Error('Mistral API key not configured');
+  }
+
+  const response = await fetch(MISTRAL_BASE_URL, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${MISTRAL_API_KEY}`,
+    },
+    body: JSON.stringify({
+      model: options.model || 'mistral-small-latest',
+      messages,
+      temperature: options.temperature || 0.7,
+      max_tokens: options.max_tokens,
+      response_format: options.response_format,
+    }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text().catch(() => '');
+    throw new Error(`Mistral API error: ${response.status} - ${errorText}`);
+  }
+
+  return response.json();
+}
+
+function escapeRegExp(input: string) {
+  return input.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function renderTemplate(template: string, vars: Record<string, string>) {
+  let out = template;
+  for (const [key, value] of Object.entries(vars)) {
+    const re = new RegExp(`{{\\s*${escapeRegExp(key)}\\s*}}`, 'g');
+    out = out.replace(re, value);
+  }
+  return out;
+}
 
 async function callOpenAI(messages: Array<{role: string; content: string}>, options: any = {}) {
   if (!OPENAI_API_KEY) {
@@ -231,8 +280,17 @@ export async function generateRoutineSuggestions(
   availableTime: number,
   childProfile: ChildProfile
 ): Promise<{ message: string; steps: SuggestedStep[]; state: GuidedRoutineState }> {
-  
-  const systemPrompt = `You are a friendly skincare assistant helping kids (ages 8-14) build a simple, safe skincare routine. 
+
+  if (await isCapabilityPaused(AI_CAPABILITY_KEY)) {
+    throw new Error('Guided routine builder is currently paused')
+  }
+
+  const systemTpl = await loadActivePromptTemplate(AI_CAPABILITY_KEY, 'system')
+  const userTpl = await loadActivePromptTemplate(AI_CAPABILITY_KEY, 'user')
+  const provider = systemTpl.model_preferences?.provider || 'openai'
+  const model = systemTpl.model_preferences?.model || 'gpt-4o-mini'
+
+  const systemFallback = `You are a friendly skincare assistant helping kids (ages 8-14) build a simple, safe skincare routine.
 You suggest age-appropriate steps based on their goals and concerns.
 
 Guidelines:
@@ -242,9 +300,9 @@ Guidelines:
 - Be encouraging and positive
 - Focus on basics: cleanse, moisturize, protect
 - Only suggest treatments if they mentioned specific concerns
-- Match the time constraint they selected`;
+- Match the time constraint they selected`
 
-  const userPrompt = `Create a ${state.segment} skincare routine for a child (age band: ${childProfile.age_band || '8-10'}) with ${childProfile.skin_type || 'normal'} skin.
+  const userFallback = `Create a ${state.segment} skincare routine for a child (age band: ${childProfile.age_band || '8-10'}) with ${childProfile.skin_type || 'normal'} skin.
 
 Goals: ${state.goals.join(', ')}
 Concerns: ${state.concerns.length > 0 ? state.concerns.join(', ') : 'None'}
@@ -261,16 +319,39 @@ Suggest 2-4 steps with:
 5. One helpful tip
 6. Brief reasoning why this step helps their goals
 
-Return as JSON array of steps.`;
+Return as JSON array of steps.`
+
+  const systemPrompt = systemTpl.content?.trim().length ? systemTpl.content : systemFallback
+  const userPromptBase = userTpl.content?.trim().length ? userTpl.content : userFallback
+  const userPrompt = renderTemplate(userPromptBase, {
+    segment: state.segment,
+    age_band: childProfile.age_band || '8-10',
+    skin_type: childProfile.skin_type || 'normal',
+    goals: state.goals.join(', '),
+    concerns: state.concerns.length > 0 ? state.concerns.join(', ') : 'None',
+    available_time_minutes: String(availableTime),
+  })
 
   try {
-    const data = await callOpenAI(
+    const data = provider === 'mistral'
+      ? await callMistral(
+          [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: userPrompt }
+          ],
+          {
+            model,
+            temperature: 0.7,
+            response_format: { type: 'json_object' },
+          }
+        )
+      : await callOpenAI(
       [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userPrompt }
       ],
       {
-        model: 'gpt-4o-mini',
+        model,
         temperature: 0.7,
         response_format: { type: 'json_object' },
       }
@@ -361,7 +442,20 @@ export async function askFollowUp(
   childProfile: ChildProfile
 ): Promise<{ message: string; state: GuidedRoutineState }> {
   
-  const systemPrompt = `You are a friendly, encouraging skincare assistant helping kids build routines.
+  if (await isCapabilityPaused(AI_CAPABILITY_KEY)) {
+    return {
+      message: "This feature is temporarily paused. Please try again later.",
+      state,
+    };
+  }
+
+  const systemTpl = await loadActivePromptTemplate(AI_CAPABILITY_KEY, 'system')
+  const provider = systemTpl.model_preferences?.provider || 'openai'
+  const model = systemTpl.model_preferences?.model || 'gpt-4o-mini'
+
+  const systemPrompt = `${systemTpl.content?.trim().length ? systemTpl.content : ''}
+
+You are a friendly, encouraging skincare assistant helping kids build routines.
 Keep responses short (2-3 sentences), positive, and age-appropriate.
 Use emojis sparingly but effectively.
 If they ask about products, remind them to check with a parent.
@@ -373,13 +467,25 @@ If unsure, suggest they talk to a parent or dermatologist.`;
     .join('\n');
 
   try {
-    const data = await callOpenAI(
+    const data = provider === 'mistral'
+      ? await callMistral(
+          [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: `Context:\n${conversationContext}\n\nUser: ${userMessage}` }
+          ],
+          {
+            model,
+            temperature: 0.8,
+            max_tokens: 150,
+          }
+        )
+      : await callOpenAI(
       [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: `Context:\n${conversationContext}\n\nUser: ${userMessage}` }
       ],
       {
-        model: 'gpt-4o-mini',
+        model,
         temperature: 0.8,
         max_tokens: 150,
       }
@@ -421,18 +527,40 @@ export async function explainStep(
   step: SuggestedStep,
   childProfile: ChildProfile
 ): Promise<string> {
-  const systemPrompt = `You are explaining a skincare step to a kid (ages 8-14) in a fun, simple way.
+  if (await isCapabilityPaused(AI_CAPABILITY_KEY)) {
+    return step.reasoning;
+  }
+
+  const systemTpl = await loadActivePromptTemplate(AI_CAPABILITY_KEY, 'system')
+  const provider = systemTpl.model_preferences?.provider || 'openai'
+  const model = systemTpl.model_preferences?.model || 'gpt-4o-mini'
+
+  const systemPrompt = `${systemTpl.content?.trim().length ? systemTpl.content : ''}
+
+You are explaining a skincare step to a kid (ages 8-14) in a fun, simple way.
 Keep it to 2-3 sentences. Use an analogy or comparison they'd understand.
 Be encouraging and make it sound easy!`;
 
   try {
-    const data = await callOpenAI(
+    const data = provider === 'mistral'
+      ? await callMistral(
+          [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: `Explain why "${step.title}" is important for their skin. Their age band: ${childProfile.age_band || '8-10'}` }
+          ],
+          {
+            model,
+            temperature: 0.8,
+            max_tokens: 100,
+          }
+        )
+      : await callOpenAI(
       [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: `Explain why "${step.title}" is important for their skin. Their age band: ${childProfile.age_band || '8-10'}` }
       ],
       {
-        model: 'gpt-4o-mini',
+        model,
         temperature: 0.8,
         max_tokens: 100,
       }

@@ -3,7 +3,7 @@
  * Calculates routine completion streaks for children
  */
 
-import { supabase } from '../../lib/supabase';
+import { supabase } from '../lib/supabase';
 
 export interface StreakData {
   currentStreak: number;

@@ -7,7 +7,7 @@ import Svg, { Path } from 'react-native-svg';
 import * as WebBrowser from 'expo-web-browser';
 import * as AppleAuthentication from 'expo-apple-authentication';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { supabase } from '../../lib/supabase';
+import { supabase } from '../../src/lib/supabase';
 import { colors, spacing, radii } from '../../src/theme/tokens';
 import TermsOfService from './terms-of-service';
 import PrivacyPolicy from './privacy-policy';

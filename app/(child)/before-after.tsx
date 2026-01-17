@@ -2,10 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, ScrollView, Image, TouchableOpacity, StyleSheet, Dimensions } from 'react-native';
 import { useRouter } from 'expo-router';
 import { ChevronLeft, ArrowRight } from 'lucide-react-native';
-import DetailPageHeader from '../../components/DetailPageHeader';
+import DetailPageHeader from '../../src/components/DetailPageHeader';
 import { colors, spacing, radii } from '../../src/theme/tokens';
-import { useAuth } from '../../contexts/AuthContext';
-import { supabase } from '../../lib/supabase';
+import { useAuth } from '../../src/contexts/AuthContext';
+import { supabase } from '../../src/lib/supabase';
 
 const { width } = Dimensions.get('window');
 const IMAGE_WIDTH = (width - spacing[6] * 3) / 2;
@@ -28,7 +28,7 @@ interface Comparison {
 export default function BeforeAfterScreen() {
   const router = useRouter();
   const { user } = useAuth();
-  
+
   const [loading, setLoading] = useState(true);
   const [comparisons, setComparisons] = useState<Comparison[]>([]);
   const [beforePhotos, setBeforePhotos] = useState<FreshieItem[]>([]);
@@ -82,10 +82,10 @@ export default function BeforeAfterScreen() {
 
         afters.forEach(after => {
           if (usedAfters.has(after.id)) return;
-          
+
           const afterDate = new Date(after.created_at);
           const diff = afterDate.getTime() - beforeDate.getTime();
-          
+
           if (diff > 0 && diff < minDiff) {
             minDiff = diff;
             closestAfter = after;
@@ -99,7 +99,7 @@ export default function BeforeAfterScreen() {
             after: closestAfter,
             daysBetween,
           });
-          usedAfters.add(closestAfter.id);
+          usedAfters.add((closestAfter as FreshieItem).id);
         }
       });
 
@@ -164,7 +164,7 @@ export default function BeforeAfterScreen() {
                     {new Date(comparison.after.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                   </Text>
                 </View>
-                
+
                 <View style={styles.comparisonImages}>
                   <View style={styles.comparisonSide}>
                     <Image
@@ -181,11 +181,11 @@ export default function BeforeAfterScreen() {
                       </View>
                     )}
                   </View>
-                  
+
                   <View style={styles.arrowContainer}>
                     <ArrowRight size={24} color={colors.purple} />
                   </View>
-                  
+
                   <View style={styles.comparisonSide}>
                     <Image
                       source={{ uri: comparison.after.photo_url }}

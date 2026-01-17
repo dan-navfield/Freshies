@@ -3,7 +3,7 @@
  * Track and unlock achievements based on user activity
  */
 
-import { supabase } from '../../lib/supabase';
+import { supabase } from '../lib/supabase';
 import * as Notifications from 'expo-notifications';
 
 export interface Achievement {

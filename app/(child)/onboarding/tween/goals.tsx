@@ -5,7 +5,7 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { ArrowLeft } from 'lucide-react-native';
 import { supabase } from '../../../../src/lib/supabase';
-import { useAuth } from '../../../../contexts/AuthContext';
+import { useAuth } from '../../../../src/contexts/AuthContext';
 import { useChildProfile } from '../../../../src/contexts/ChildProfileContext';
 
 /**
@@ -165,7 +165,7 @@ export default function TweenGoals() {
           {goals.map((goal) => {
             const isSelected = selectedGoals.includes(goal.id);
             const isDisabled = !isSelected && selectedGoals.length >= 2;
-            
+
             return (
               <TouchableOpacity
                 key={goal.id}

@@ -1,4 +1,5 @@
-import { supabase } from '../../lib/supabase';
+import { supabase } from '../lib/supabase';
+import { Result, ok, err } from '../types/result';
 
 export interface RoutineStepTemplate {
   id: string;
@@ -41,7 +42,7 @@ class RoutineTemplateService {
   /**
    * Get all active templates with optional filters
    */
-  async getTemplates(filters?: TemplateFilters): Promise<RoutineStepTemplate[]> {
+  async getTemplates(filters?: TemplateFilters): Promise<Result<RoutineStepTemplate[]>> {
     try {
       let query = supabase
         .from('routine_step_templates')
@@ -78,18 +79,17 @@ class RoutineTemplateService {
 
       const { data, error } = await query;
 
-      if (error) throw error;
-      return data || [];
-    } catch (error) {
-      console.error('Error fetching templates:', error);
-      return [];
+      if (error) return err(error);
+      return ok(data || []);
+    } catch (error: any) {
+      return err(error instanceof Error ? error : new Error(String(error)));
     }
   }
 
   /**
    * Get a single template by ID
    */
-  async getTemplateById(id: string): Promise<RoutineStepTemplate | null> {
+  async getTemplateById(id: string): Promise<Result<RoutineStepTemplate>> {
     try {
       const { data, error } = await supabase
         .from('routine_step_templates')
@@ -98,18 +98,18 @@ class RoutineTemplateService {
         .eq('is_active', true)
         .single();
 
-      if (error) throw error;
-      return data;
-    } catch (error) {
-      console.error('Error fetching template:', error);
-      return null;
+      if (error) return err(error);
+      if (!data) return err(new Error('Template not found'));
+      return ok(data);
+    } catch (error: any) {
+      return err(error instanceof Error ? error : new Error(String(error)));
     }
   }
 
   /**
    * Get a template by slug
    */
-  async getTemplateBySlug(slug: string): Promise<RoutineStepTemplate | null> {
+  async getTemplateBySlug(slug: string): Promise<Result<RoutineStepTemplate>> {
     try {
       const { data, error } = await supabase
         .from('routine_step_templates')
@@ -118,25 +118,25 @@ class RoutineTemplateService {
         .eq('is_active', true)
         .single();
 
-      if (error) throw error;
-      return data;
-    } catch (error) {
-      console.error('Error fetching template by slug:', error);
-      return null;
+      if (error) return err(error);
+      if (!data) return err(new Error('Template not found'));
+      return ok(data);
+    } catch (error: any) {
+      return err(error instanceof Error ? error : new Error(String(error)));
     }
   }
 
   /**
    * Get templates by type
    */
-  async getTemplatesByType(type: string): Promise<RoutineStepTemplate[]> {
+  async getTemplatesByType(type: string): Promise<Result<RoutineStepTemplate[]>> {
     return this.getTemplates({ type });
   }
 
   /**
    * Search templates by text
    */
-  async searchTemplates(searchTerm: string): Promise<RoutineStepTemplate[]> {
+  async searchTemplates(searchTerm: string): Promise<Result<RoutineStepTemplate[]>> {
     try {
       const { data, error } = await supabase
         .from('routine_step_templates')
@@ -145,18 +145,17 @@ class RoutineTemplateService {
         .textSearch('search_vector', searchTerm)
         .order('recommended_order', { ascending: true });
 
-      if (error) throw error;
-      return data || [];
-    } catch (error) {
-      console.error('Error searching templates:', error);
-      return [];
+      if (error) return err(error);
+      return ok(data || []);
+    } catch (error: any) {
+      return err(error instanceof Error ? error : new Error(String(error)));
     }
   }
 
   /**
    * Get featured templates
    */
-  async getFeaturedTemplates(): Promise<RoutineStepTemplate[]> {
+  async getFeaturedTemplates(): Promise<Result<RoutineStepTemplate[]>> {
     return this.getTemplates({ isFeatured: true });
   }
 
@@ -165,7 +164,7 @@ class RoutineTemplateService {
    */
   async createTemplate(
     template: Omit<RoutineStepTemplate, 'id' | 'created_at' | 'updated_at'>
-  ): Promise<RoutineStepTemplate | null> {
+  ): Promise<Result<RoutineStepTemplate>> {
     try {
       const { data, error } = await supabase
         .from('routine_step_templates')
@@ -173,11 +172,10 @@ class RoutineTemplateService {
         .select()
         .single();
 
-      if (error) throw error;
-      return data;
-    } catch (error) {
-      console.error('Error creating template:', error);
-      return null;
+      if (error) return err(error);
+      return ok(data);
+    } catch (error: any) {
+      return err(error instanceof Error ? error : new Error(String(error)));
     }
   }
 
@@ -187,7 +185,7 @@ class RoutineTemplateService {
   async updateTemplate(
     id: string,
     updates: Partial<RoutineStepTemplate>
-  ): Promise<RoutineStepTemplate | null> {
+  ): Promise<Result<RoutineStepTemplate>> {
     try {
       const { data, error } = await supabase
         .from('routine_step_templates')
@@ -196,47 +194,46 @@ class RoutineTemplateService {
         .select()
         .single();
 
-      if (error) throw error;
-      return data;
-    } catch (error) {
-      console.error('Error updating template:', error);
-      return null;
+      if (error) return err(error);
+      if (!data) return err(new Error('Template not found or update failed'));
+      return ok(data);
+    } catch (error: any) {
+      return err(error instanceof Error ? error : new Error(String(error)));
     }
   }
 
   /**
    * Delete a template (soft delete by setting is_active to false)
    */
-  async deleteTemplate(id: string): Promise<boolean> {
+  async deleteTemplate(id: string): Promise<Result<boolean>> {
     try {
       const { error } = await supabase
         .from('routine_step_templates')
         .update({ is_active: false })
         .eq('id', id);
 
-      if (error) throw error;
-      return true;
-    } catch (error) {
-      console.error('Error deleting template:', error);
-      return false;
+      if (error) return err(error);
+      return ok(true);
+    } catch (error: any) {
+      return err(error instanceof Error ? error : new Error(String(error)));
     }
   }
 
   /**
    * Get template statistics
    */
-  async getTemplateStats(): Promise<{
+  async getTemplateStats(): Promise<Result<{
     total: number;
     byType: Record<string, number>;
     aiGenerated: number;
-  }> {
+  }>> {
     try {
       const { data, error } = await supabase
         .from('routine_step_templates')
         .select('type, generated_by_ai')
         .eq('is_active', true);
 
-      if (error) throw error;
+      if (error) return err(error);
 
       const stats = {
         total: data?.length || 0,
@@ -251,10 +248,9 @@ class RoutineTemplateService {
         }
       });
 
-      return stats;
-    } catch (error) {
-      console.error('Error fetching template stats:', error);
-      return { total: 0, byType: {}, aiGenerated: 0 };
+      return ok(stats);
+    } catch (error: any) {
+      return err(error instanceof Error ? error : new Error(String(error)));
     }
   }
 }

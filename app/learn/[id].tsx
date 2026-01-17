@@ -49,11 +49,13 @@ export default function ArticleDetailScreen() {
 
   async function loadArticle() {
     try {
+      const now = new Date().toISOString();
       const { data, error } = await supabase
         .from('learn_articles')
         .select('*')
         .eq('id', id)
         .eq('status', 'published')
+        .or(`published_at.is.null,published_at.lte.${now}`)
         .single();
 
       if (error) throw error;

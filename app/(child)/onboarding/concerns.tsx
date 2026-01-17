@@ -35,7 +35,7 @@ export default function ConcernsOnboarding() {
 
   const handleContinue = () => {
     router.push({
-      pathname: '/(child)/onboarding/goals',
+      pathname: '/(child)/onboarding/teen/goals' as const,
       params: {
         skinType: params.skinType,
         concerns: JSON.stringify(selectedConcerns),
@@ -45,7 +45,7 @@ export default function ConcernsOnboarding() {
 
   const handleSkip = () => {
     router.push({
-      pathname: '/(child)/onboarding/goals',
+      pathname: '/(child)/onboarding/teen/goals' as const,
       params: {
         skinType: params.skinType,
         concerns: JSON.stringify([]),

@@ -2,10 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, ScrollView, Image, TouchableOpacity, StyleSheet, Dimensions, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Calendar, TrendingUp, Award, Sparkles } from 'lucide-react-native';
-import DetailPageHeader from '../../components/DetailPageHeader';
+import DetailPageHeader from '../../src/components/DetailPageHeader';
 import { colors, spacing, radii } from '../../src/theme/tokens';
-import { useAuth } from '../../contexts/AuthContext';
-import { supabase } from '../../lib/supabase';
+import { useAuth } from '../../src/contexts/AuthContext';
+import { supabase } from '../../src/lib/supabase';
 
 const { width } = Dimensions.get('window');
 const COMPARISON_WIDTH = (width - spacing[6] * 3) / 2;

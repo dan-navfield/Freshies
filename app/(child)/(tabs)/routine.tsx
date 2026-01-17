@@ -3,18 +3,18 @@ import { View, Text, ScrollView, TouchableOpacity, Modal, Pressable } from 'reac
 import { useRouter, useFocusEffect } from 'expo-router';
 import { Sun, Moon, Sunrise, Clock, Play, ChevronLeft, ChevronRight, Check, Settings, Calendar } from 'lucide-react-native';
 import { colors, spacing, radii } from '../../../src/theme/tokens';
-import { supabase } from '../../../lib/supabase';
-import GamificationBand from '../../../components/GamificationBand';
-import PageHeader from '../../../components/PageHeader';
+import { supabase } from '../../../src/lib/supabase';
+import GamificationBand from '../../../src/components/GamificationBand';
+import PageHeader from '../../../src/components/PageHeader';
 import { useChildProfile } from '../../../src/contexts/ChildProfileContext';
-import { useAuth } from '../../../contexts/AuthContext';
-import RoutineBottomSheet from '../../../components/RoutineBottomSheet';
-import SwipeableRoutineCard from '../../../components/SwipeableRoutineCard';
+import { useAuth } from '../../../src/contexts/AuthContext';
+import RoutineBottomSheet from '../../../src/components/RoutineBottomSheet';
+import SwipeableRoutineCard from '../../../src/components/SwipeableRoutineCard';
 import { StyleSheet, Alert } from 'react-native';
-import { 
+import {
   setupNotificationResponseHandler,
   scheduleAllRoutineNotifications,
-  requestNotificationPermissions 
+  requestNotificationPermissions
 } from '../../../src/services/routineNotificationScheduler';
 
 type Segment = 'morning' | 'afternoon' | 'evening';
@@ -40,7 +40,7 @@ export default function RoutineHomeScreen() {
   const router = useRouter();
   const { childProfile } = useChildProfile();
   const { user } = useAuth();
-  const [routines, setRoutines] = useState<{morning?: RoutineCardData, afternoon?: RoutineCardData, evening?: RoutineCardData}>({});
+  const [routines, setRoutines] = useState<{ morning: RoutineCardData[], afternoon: RoutineCardData[], evening: RoutineCardData[] }>({ morning: [], afternoon: [], evening: [] });
   const [loading, setLoading] = useState(true);
   const [selectedRoutine, setSelectedRoutine] = useState<RoutineCardData | null>(null);
   const [selectedSegment, setSelectedSegment] = useState<Segment | null>(null);
@@ -49,7 +49,8 @@ export default function RoutineHomeScreen() {
   const [routineCompletionStatus, setRoutineCompletionStatus] = useState<Record<string, boolean>>({});
   const [snoozedRoutines, setSnoozedRoutines] = useState<Set<string>>(new Set());
   const [skippedRoutines, setSkippedRoutines] = useState<Set<string>>(new Set());
-  
+  const [searchQuery, setSearchQuery] = useState('');
+
   const selectedViewDay = (() => {
     const day = selectedViewDate.getDay();
     return day === 0 ? 6 : day - 1; // Convert to our format (0 = Monday)
@@ -85,20 +86,20 @@ export default function RoutineHomeScreen() {
   // Load snoozed and skipped routines for today
   const loadRoutineActions = async () => {
     if (!childProfile?.id) return;
-    
+
     try {
       const today = new Date().toISOString().split('T')[0];
       const now = new Date();
-      
+
       const { data: actions } = await supabase
         .from('routine_actions')
         .select('*')
         .eq('child_profile_id', childProfile.id)
         .eq('action_date', today);
-      
+
       const snoozed = new Set<string>();
       const skipped = new Set<string>();
-      
+
       actions?.forEach(action => {
         if (action.action_type === 'skip') {
           skipped.add(action.routine_id);
@@ -109,21 +110,21 @@ export default function RoutineHomeScreen() {
           }
         }
       });
-      
+
       setSnoozedRoutines(snoozed);
       setSkippedRoutines(skipped);
     } catch (error) {
       console.error('Error loading routine actions:', error);
     }
   };
-  
+
   const handleSnoozeRoutine = async (routineId: string, routineName: string) => {
     if (!childProfile?.id) return;
-    
+
     try {
       const snoozeUntil = new Date();
       snoozeUntil.setHours(snoozeUntil.getHours() + 1);
-      
+
       const { error } = await supabase
         .from('routine_actions')
         .upsert({
@@ -133,11 +134,11 @@ export default function RoutineHomeScreen() {
           action_date: new Date().toISOString().split('T')[0],
           snooze_until: snoozeUntil.toISOString(),
         });
-      
+
       if (error) throw error;
-      
+
       setSnoozedRoutines(prev => new Set(prev).add(routineId));
-      
+
       Alert.alert(
         'Routine Snoozed ⏰',
         `${routineName} will remind you in 1 hour`,
@@ -148,10 +149,10 @@ export default function RoutineHomeScreen() {
       Alert.alert('Error', 'Failed to snooze routine');
     }
   };
-  
+
   const handleSkipRoutine = async (routineId: string, routineName: string) => {
     if (!childProfile?.id) return;
-    
+
     Alert.alert(
       'Skip Routine?',
       `Skip ${routineName} for today? You can still complete it later.`,
@@ -170,9 +171,9 @@ export default function RoutineHomeScreen() {
                   action_type: 'skip',
                   action_date: new Date().toISOString().split('T')[0],
                 });
-              
+
               if (error) throw error;
-              
+
               setSkippedRoutines(prev => new Set(prev).add(routineId));
             } catch (error) {
               console.error('Error skipping routine:', error);
@@ -187,19 +188,20 @@ export default function RoutineHomeScreen() {
   // Initialize notifications
   const initializeNotifications = async () => {
     if (!childProfile?.id || !user?.id) return;
-    
+
     try {
       // Request permissions
       const hasPermission = await requestNotificationPermissions();
-      
+
       if (hasPermission) {
         // Schedule notifications for all active routines
         await scheduleAllRoutineNotifications(childProfile.id, user.id);
-        
+
         // Set up notification tap handler
         setupNotificationResponseHandler((routineId, segment) => {
           // Find and open the routine when notification is tapped
-          const routine = Object.values(routines).find(r => r?.id === routineId);
+          const allRoutines = [...routines.morning, ...routines.afternoon, ...routines.evening];
+          const routine = allRoutines.find(r => r?.id === routineId);
           if (routine) {
             setSelectedRoutine(routine);
           }
@@ -216,18 +218,31 @@ export default function RoutineHomeScreen() {
       return;
     }
 
+    if (childProfile?.id === undefined) {
+      setLoading(false);
+      return;
+    }
+
     try {
-      const { data: allRoutines, error } = await supabase
-        .from('custom_routines')
-        .select('*')
-        .eq('child_profile_id', childProfile.id)
-        .eq('is_active', true);
+      const { routineService } = await import('../../../src/services/routineService');
+      const result = await routineService.getRoutinesForToday(childProfile.id);
 
-      if (error) throw error;
+      if (!result.ok) {
+        throw result.error;
+      }
 
-      const routinesBySegment: any = {};
-      allRoutines?.forEach(routine => {
-        routinesBySegment[routine.segment] = routine;
+      const allRoutines = result.value;
+      const routinesBySegment: { morning: RoutineCardData[], afternoon: RoutineCardData[], evening: RoutineCardData[] } = {
+        morning: [],
+        afternoon: [],
+        evening: []
+      };
+
+      allRoutines.forEach(routine => {
+        const segment = routine.segment as Segment;
+        if (routinesBySegment[segment]) {
+          routinesBySegment[segment].push(routine as RoutineCardData);
+        }
       });
 
       setRoutines(routinesBySegment);
@@ -245,7 +260,7 @@ export default function RoutineHomeScreen() {
       console.log('🔄 Loading week completion status...');
       console.log('Child profile ID:', childProfile.id);
       console.log('Routines:', Object.keys(routines));
-      
+
       // Get dates for the current week (last 7 days)
       const dates: string[] = [];
       for (let i = 0; i < 7; i++) {
@@ -253,7 +268,7 @@ export default function RoutineHomeScreen() {
         date.setDate(date.getDate() - ((new Date().getDay() === 0 ? 6 : new Date().getDay() - 1) - i));
         dates.push(date.toISOString().split('T')[0]);
       }
-      
+
       console.log('Checking dates:', dates);
 
       // Get all completions for the week
@@ -264,16 +279,16 @@ export default function RoutineHomeScreen() {
         .in('completion_date', dates);
 
       if (error) throw error;
-      
+
       console.log('Found completions:', completions?.length || 0);
 
       // Calculate completion status for each day
       const statusByDay: DayCompletionStatus = {};
-      
+
       for (let dayIndex = 0; dayIndex < 7; dayIndex++) {
         const dateStr = dates[dayIndex];
         const today = new Date().toISOString().split('T')[0];
-        
+
         // Skip future days only (not today)
         if (dateStr > today) {
           statusByDay[dayIndex] = 'none';
@@ -282,15 +297,17 @@ export default function RoutineHomeScreen() {
 
         // Get completions for this day
         const dayCompletions = completions?.filter(c => c.completion_date === dateStr) || [];
-        
+
         // Count total steps needed across all active routines
         let totalStepsNeeded = 0;
         let totalStepsCompleted = 0;
-        
-        Object.values(routines).forEach(routine => {
+
+        // Iterate over all segments and all routines within each segment
+        const allRoutines = [...routines.morning, ...routines.afternoon, ...routines.evening];
+        allRoutines.forEach(routine => {
           if (routine && Array.isArray(routine.steps)) {
             totalStepsNeeded += routine.steps.length;
-            
+
             // Count completed steps for this routine on this day
             const routineCompletions = dayCompletions.filter(c => c.routine_id === routine.id);
             totalStepsCompleted += routineCompletions.length;
@@ -310,35 +327,37 @@ export default function RoutineHomeScreen() {
       }
 
       setDayCompletionStatus(statusByDay);
-      
+
       // Also load individual routine completion status for today
       const today = new Date().toISOString().split('T')[0];
       const routineStatus: Record<string, boolean> = {};
-      
+
       console.log('📊 Checking individual routine completion for today:', today);
-      
-      for (const [segment, routine] of Object.entries(routines)) {
+
+      // Iterate over all routines in all segments
+      const allRoutinesFlat = [...routines.morning, ...routines.afternoon, ...routines.evening];
+      for (const routine of allRoutinesFlat) {
         if (routine && routine.id) {
-          const routineCompletions = completions?.filter(c => 
+          const routineCompletions = completions?.filter(c =>
             c.routine_id === routine.id && c.completion_date === today
           ) || [];
-          
+
           // Get unique step IDs (in case of duplicates)
           const uniqueCompletedStepIds = new Set(routineCompletions.map(c => c.routine_step_id));
-          
+
           console.log(`    Completed step IDs:`, Array.from(uniqueCompletedStepIds));
-          console.log(`    Expected step IDs:`, routine.steps?.map(s => s.id));
-          
+          console.log(`    Expected step IDs:`, routine.steps?.map((s: any) => s.id));
+
           const totalSteps = routine.steps?.length || 0;
           const completedSteps = uniqueCompletedStepIds.size;
           const isComplete = totalSteps > 0 && completedSteps === totalSteps;
-          
-          console.log(`  ${segment} (${routine.id}): ${completedSteps}/${totalSteps} unique steps = ${isComplete ? '✅ COMPLETE' : '❌ INCOMPLETE'}`);
-          
+
+          console.log(`  ${routine.segment} (${routine.id}): ${completedSteps}/${totalSteps} unique steps = ${isComplete ? '✅ COMPLETE' : '❌ INCOMPLETE'}`);
+
           routineStatus[routine.id] = isComplete;
         }
       }
-      
+
       console.log('Final routine status:', routineStatus);
       setRoutineCompletionStatus(routineStatus);
     } catch (error) {
@@ -372,24 +391,35 @@ export default function RoutineHomeScreen() {
     loadWeekCompletionStatus();
   };
 
-  const toggleDay = async (dayIndex: number, segment: Segment) => {
-    const routine = routines[segment];
-    if (!routine) return;
+  const toggleDay = async (dayIndex: number, routineId: string, segment: Segment) => {
+    // Find the routine in the appropriate segment array
+    const segmentRoutines = routines[segment];
+    const routineIndex = segmentRoutines.findIndex(r => r.id === routineId);
+    if (routineIndex === -1) return;
+
+    const routine = segmentRoutines[routineIndex];
 
     const currentDays = routine.active_days || [0, 1, 2, 3, 4];
     const newDays = currentDays.includes(dayIndex)
-      ? currentDays.filter(d => d !== dayIndex)
+      ? currentDays.filter((d: number) => d !== dayIndex)
       : [...currentDays, dayIndex].sort();
 
     // Update locally
-    setRoutines(prev => ({
-      ...prev,
-      [segment]: { ...routine, active_days: newDays }
-    }));
+    setRoutines(prev => {
+      const updatedSegment = [...prev[segment]];
+      updatedSegment[routineIndex] = { ...routine, active_days: newDays };
+      return {
+        ...prev,
+        [segment]: updatedSegment
+      };
+    });
 
     // Update in database
     const { routineService } = await import('../../../src/services/routineService');
-    await routineService.updateActiveDays(routine.id, newDays);
+    const result = await routineService.updateActiveDays(routine.id, newDays);
+    if (!result.ok) {
+      console.error('Failed to update active days:', result.error);
+    }
   };
 
   const goToPreviousDay = () => {
@@ -414,7 +444,7 @@ export default function RoutineHomeScreen() {
     const diff = dayIndex - currentDayIndex;
     const targetDate = new Date(today);
     targetDate.setDate(today.getDate() + diff);
-    
+
     return targetDate.getDate().toString(); // Just return the day number
   };
 
@@ -423,16 +453,16 @@ export default function RoutineHomeScreen() {
     today.setHours(0, 0, 0, 0);
     const selected = new Date(selectedViewDate);
     selected.setHours(0, 0, 0, 0);
-    
+
     const dayName = DAY_NAMES[selectedViewDay];
     const month = selectedViewDate.toLocaleDateString('en-US', { month: 'short' });
     const date = selectedViewDate.getDate();
-    
+
     // Check if it's today
     if (selected.getTime() === today.getTime()) {
       return `Today, ${month} ${date}`;
     }
-    
+
     return `${dayName}, ${month} ${date}`;
   };
 
@@ -440,14 +470,14 @@ export default function RoutineHomeScreen() {
     return (
       <View style={styles.daySelectorContainer}>
         <View style={styles.compactDayRow}>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.compactNavArrow}
             onPress={goToPreviousDay}
             activeOpacity={0.7}
           >
             <ChevronLeft size={20} color={colors.purple} strokeWidth={2.5} />
           </TouchableOpacity>
-          
+
           <View style={styles.dayCirclesCompact}>
             {DAYS.map((day, index) => {
               const isSelected = selectedViewDay === index;
@@ -457,7 +487,7 @@ export default function RoutineHomeScreen() {
                 return index === todayIndex;
               })();
               const completionStatus = dayCompletionStatus[index] || 'none';
-              
+
               return (
                 <View key={index} style={styles.dayCircleWrapper}>
                   <TouchableOpacity
@@ -500,8 +530,8 @@ export default function RoutineHomeScreen() {
               );
             })}
           </View>
-          
-          <TouchableOpacity 
+
+          <TouchableOpacity
             style={styles.compactNavArrow}
             onPress={goToNextDay}
             activeOpacity={0.7}
@@ -515,9 +545,9 @@ export default function RoutineHomeScreen() {
 
   const renderDaySelector = (segment: Segment, routine?: RoutineCardData) => {
     if (!routine) return null;
-    
+
     const activeDays = routine.active_days || [0, 1, 2, 3, 4];
-    
+
     return (
       <View style={styles.miniDaySelector}>
         {DAYS.map((day, index) => {
@@ -529,7 +559,7 @@ export default function RoutineHomeScreen() {
                 styles.miniDayCircle,
                 isSelected && styles.miniDayCircleActive
               ]}
-              onPress={() => toggleDay(index, segment)}
+              onPress={() => toggleDay(index, routine.id, segment)}
               activeOpacity={0.7}
             >
               <Text style={[
@@ -545,78 +575,107 @@ export default function RoutineHomeScreen() {
     );
   };
 
-  const renderRoutineCard = (segment: Segment) => {
-    const routine = routines[segment];
+  // Render an empty routine card when no routines exist for a segment
+  const renderEmptyRoutineCard = (segment: Segment) => {
     const Icon = getSegmentIcon(segment);
-    const hasRoutine = !!routine;
-    
+
+    return (
+      <TouchableOpacity
+        key={`empty-${segment}`}
+        style={[
+          styles.routineCard,
+          styles.routineCardInactive,
+          styles.routineCardEmpty
+        ]}
+        onPress={() => {
+          router.push({
+            pathname: '/(child)/routine-builder-enhanced',
+            params: { segment }
+          });
+        }}
+        activeOpacity={0.8}
+      >
+        <View style={styles.cardHeader}>
+          <View style={styles.cardHeaderLeft}>
+            <View style={[styles.iconCircle, { backgroundColor: colors.mist }]}>
+              <Icon size={28} color={colors.charcoal} />
+            </View>
+            <Text style={styles.cardTitle}>
+              {`${segment.charAt(0).toUpperCase() + segment.slice(1)} Routine`}
+            </Text>
+          </View>
+        </View>
+
+        <View style={styles.emptyState}>
+          <Text style={styles.emptyText}>No routine set</Text>
+          <Text style={styles.emptySubtext}>Tap to create</Text>
+        </View>
+      </TouchableOpacity>
+    );
+  };
+
+  const renderRoutineCard = (routine: RoutineCardData, segment: Segment) => {
+    // Filter by search query if active
+    if (searchQuery) {
+      if (!routine.name.toLowerCase().includes(searchQuery.toLowerCase())) {
+        return null;
+      }
+    }
+
+    const Icon = getSegmentIcon(segment);
+
     // Check if this routine is active on the selected day
-    const isActiveOnSelectedDay = routine?.active_days?.includes(selectedViewDay) ?? false;
-    
+    const isActiveOnSelectedDay = routine.active_days?.includes(selectedViewDay) ?? false;
+
     // Determine if we're viewing "today" or a different day
     const today = new Date();
     const currentDayIndex = today.getDay() === 0 ? 6 : today.getDay() - 1;
     const isViewingToday = selectedViewDay === currentDayIndex;
-    
+
     // Check if THIS specific routine is complete for today
-    const isCompleteToday = isViewingToday && routine?.id ? routineCompletionStatus[routine.id] === true : false;
-    
-    // If viewing TODAY: show all active routines (homepage view)
-    // If viewing OTHER DAY: only show routines scheduled for that day (historical/planning view)
-    if (!isViewingToday && hasRoutine && !isActiveOnSelectedDay) {
+    const isCompleteToday = isViewingToday ? routineCompletionStatus[routine.id] === true : false;
+
+    // If viewing OTHER DAY: only show routines scheduled for that day
+    if (!isViewingToday && !isActiveOnSelectedDay) {
       return null;
     }
 
-    const isSkipped = routine?.id ? skippedRoutines.has(routine.id) : false;
-    const isSnoozed = routine?.id ? snoozedRoutines.has(routine.id) : false;
-    
+    const isSkipped = skippedRoutines.has(routine.id);
+    const isSnoozed = snoozedRoutines.has(routine.id);
+
     return (
       <SwipeableRoutineCard
-        key={segment}
-        onSnooze={hasRoutine && !isCompleteToday ? () => handleSnoozeRoutine(routine.id, routine.name) : undefined}
-        onSkip={hasRoutine && !isCompleteToday ? () => handleSkipRoutine(routine.id, routine.name) : undefined}
-        disabled={!hasRoutine || isCompleteToday || isSkipped}
+        key={routine.id}
+        onSnooze={!isCompleteToday ? () => handleSnoozeRoutine(routine.id, routine.name) : undefined}
+        onSkip={!isCompleteToday ? () => handleSkipRoutine(routine.id, routine.name) : undefined}
+        disabled={isCompleteToday || isSkipped}
       >
         <TouchableOpacity
           style={[
             styles.routineCard,
-            !hasRoutine && styles.routineCardInactive,
-            !hasRoutine && styles.routineCardEmpty,
             isSkipped && styles.routineCardSkipped,
             isSnoozed && styles.routineCardSnoozed
           ]}
-          onPress={() => {
-            if (hasRoutine) {
-              openRoutine(routine);
-            } else {
-              // Navigate to create routine
-              router.push({
-                pathname: '/(child)/routine-builder-enhanced',
-                params: { segment }
-              });
-            }
-          }}
+          onPress={() => openRoutine(routine)}
           activeOpacity={0.8}
         >
-        <View style={styles.cardHeader}>
-          <View style={styles.cardHeaderLeft}>
-            <View style={[styles.iconCircle, { backgroundColor: hasRoutine ? colors.purple : colors.mist }]}>
-              <Icon size={28} color={hasRoutine ? colors.white : colors.charcoal} />
+          <View style={styles.cardHeader}>
+            <View style={styles.cardHeaderLeft}>
+              <View style={[styles.iconCircle, { backgroundColor: colors.purple }]}>
+                <Icon size={28} color={colors.white} />
+              </View>
+              <Text style={styles.cardTitle}>{routine.name}</Text>
             </View>
-            <Text style={styles.cardTitle}>
-              {hasRoutine ? routine.name : `${segment.charAt(0).toUpperCase() + segment.slice(1)} Routine`}
-            </Text>
-          </View>
-          {hasRoutine && (
             <TouchableOpacity
               onPress={(e) => {
                 e.stopPropagation();
                 setExpandedRoutines(prev => {
                   const newSet = new Set(prev);
-                  if (newSet.has(segment)) {
-                    newSet.delete(segment);
+                  const routineKey = routine.id as unknown as Segment; // Using routine id as key
+                  if (newSet.has(routineKey)) {
+                    newSet.delete(routineKey);
                   } else {
-                    newSet.add(segment);
+                    newSet.add(routineKey);
                   }
                   return newSet;
                 });
@@ -624,71 +683,69 @@ export default function RoutineHomeScreen() {
               style={styles.expandButton}
               activeOpacity={0.7}
             >
-              <ChevronRight 
-                size={20} 
-                color={colors.charcoal} 
-                style={{ 
-                  transform: [{ rotate: expandedRoutines.has(segment) ? '90deg' : '0deg' }],
+              <ChevronRight
+                size={20}
+                color={colors.charcoal}
+                style={{
+                  transform: [{ rotate: expandedRoutines.has(routine.id as unknown as Segment) ? '90deg' : '0deg' }],
                   opacity: 0.6
-                }} 
+                }}
               />
             </TouchableOpacity>
+          </View>
+
+          {expandedRoutines.has(routine.id as unknown as Segment) && (
+            <>
+              {/* Active Days Display (read-only) */}
+              <View style={styles.dayCirclesDisplay}>
+                {DAYS.map((day, index) => {
+                  const activeDays = routine.active_days || [0, 1, 2, 3, 4, 5, 6];
+                  const isActive = activeDays.includes(index);
+                  return (
+                    <View
+                      key={index}
+                      style={[
+                        styles.dayCircleReadOnly,
+                        isActive && styles.dayCircleReadOnlyActive
+                      ]}
+                    >
+                      <Text style={[
+                        styles.dayTextReadOnly,
+                        isActive && styles.dayTextReadOnlyActive
+                      ]}>
+                        {day}
+                      </Text>
+                    </View>
+                  );
+                })}
+              </View>
+
+              <View style={styles.cardMeta}>
+                <View style={styles.metaItem}>
+                  <Clock size={16} color={colors.charcoal} />
+                  <Text style={styles.metaText}>{routine.total_duration} mins</Text>
+                </View>
+                <View style={styles.metaItem}>
+                  <Text style={styles.metaText}>{routine.steps?.length || 0} steps</Text>
+                </View>
+              </View>
+
+              {/* Routine Steps Pills */}
+              <View style={styles.stepsSection}>
+                <Text style={styles.stepsSectionTitle}>Routine steps:</Text>
+                <View style={styles.stepsPills}>
+                  {routine.steps?.map((step: any, index: number) => (
+                    <View key={index} style={styles.stepPill}>
+                      <Text style={styles.stepPillText}>
+                        {index + 1}. {step.title}
+                      </Text>
+                    </View>
+                  ))}
+                </View>
+              </View>
+            </>
           )}
-        </View>
 
-        {hasRoutine && expandedRoutines.has(segment) && (
-          <>
-            {/* Active Days Display (read-only) */}
-            <View style={styles.dayCirclesDisplay}>
-              {DAYS.map((day, index) => {
-                const activeDays = routine.active_days || [0, 1, 2, 3, 4, 5, 6];
-                const isActive = activeDays.includes(index);
-                return (
-                  <View
-                    key={index}
-                    style={[
-                      styles.dayCircleReadOnly,
-                      isActive && styles.dayCircleReadOnlyActive
-                    ]}
-                  >
-                    <Text style={[
-                      styles.dayTextReadOnly,
-                      isActive && styles.dayTextReadOnlyActive
-                    ]}>
-                      {day}
-                    </Text>
-                  </View>
-                );
-              })}
-            </View>
-            
-            <View style={styles.cardMeta}>
-              <View style={styles.metaItem}>
-                <Clock size={16} color={colors.charcoal} />
-                <Text style={styles.metaText}>{routine.total_duration} mins</Text>
-              </View>
-              <View style={styles.metaItem}>
-                <Text style={styles.metaText}>{routine.steps?.length || 0} steps</Text>
-              </View>
-            </View>
-            
-            {/* Routine Steps Pills */}
-            <View style={styles.stepsSection}>
-              <Text style={styles.stepsSectionTitle}>Routine steps:</Text>
-              <View style={styles.stepsPills}>
-                {routine.steps?.map((step, index) => (
-                  <View key={index} style={styles.stepPill}>
-                    <Text style={styles.stepPillText}>
-                      {index + 1}. {step.title}
-                    </Text>
-                  </View>
-                ))}
-              </View>
-            </View>
-          </>
-        )}
-
-        {hasRoutine && (
           <View style={[
             styles.playButton,
             isCompleteToday && styles.playButtonComplete
@@ -705,27 +762,19 @@ export default function RoutineHomeScreen() {
               </>
             )}
           </View>
-        )}
-
-        {!hasRoutine && (
-          <View style={styles.emptyState}>
-            <Text style={styles.emptyText}>No routine set</Text>
-            <Text style={styles.emptySubtext}>Tap to create</Text>
-          </View>
-        )}
-      </TouchableOpacity>
-    </SwipeableRoutineCard>
+        </TouchableOpacity>
+      </SwipeableRoutineCard>
     );
   };
 
   return (
     <View style={styles.container}>
-      <PageHeader 
+      <PageHeader
         title="My Routines"
         subtitle="Your daily skincare journey! 🌟"
         showAvatar={true}
       />
-      
+
       <GamificationBand />
 
       {renderTopDaySelector()}
@@ -748,18 +797,35 @@ export default function RoutineHomeScreen() {
             </TouchableOpacity>
           </View>
         </View>
-        
+
         {loading ? (
           <Text style={styles.loadingText}>Loading...</Text>
         ) : (
           <View style={styles.cardsContainer}>
-            {renderRoutineCard('morning')}
-            {renderRoutineCard('afternoon')}
-            {renderRoutineCard('evening')}
+            {/* Morning Routines */}
+            {routines.morning.length > 0 ? (
+              routines.morning.map(routine => renderRoutineCard(routine, 'morning'))
+            ) : (
+              renderEmptyRoutineCard('morning')
+            )}
+
+            {/* Afternoon Routines */}
+            {routines.afternoon.length > 0 ? (
+              routines.afternoon.map(routine => renderRoutineCard(routine, 'afternoon'))
+            ) : (
+              renderEmptyRoutineCard('afternoon')
+            )}
+
+            {/* Evening Routines */}
+            {routines.evening.length > 0 ? (
+              routines.evening.map(routine => renderRoutineCard(routine, 'evening'))
+            ) : (
+              renderEmptyRoutineCard('evening')
+            )}
           </View>
         )}
 
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.manageButton}
           onPress={() => router.push('/(child)/routines')}
         >

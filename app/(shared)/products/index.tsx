@@ -2,7 +2,7 @@ import { View, Text, ScrollView, Pressable, StyleSheet, Image, TextInput } from 
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { colors, radii, spacing } from '../../../src/theme/tokens';
-import { useAuth } from '../../../contexts/AuthContext';
+import { useAuth } from '../../../src/contexts/AuthContext';
 import { ChevronLeft, Search, Filter, Package, TrendingUp, Clock, Grid, List } from 'lucide-react-native';
 import { getChildProducts } from '../../../src/services/productsService';
 import { getChildren } from '../../../src/services/familyService';

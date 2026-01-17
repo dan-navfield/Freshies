@@ -21,10 +21,10 @@ import { colors, spacing, radii } from '../../src/theme/tokens';
 import { LinearGradient } from 'expo-linear-gradient';
 import { achievementService, UserAchievement } from '../../src/services/achievementService';
 import { useChildProfile } from '../../src/contexts/ChildProfileContext';
-import { supabase } from '../../lib/supabase';
-import DetailPageHeader from '../../components/DetailPageHeader';
-import GamificationBand from '../../components/GamificationBand';
-import ShareAchievementModal from '../../components/ShareAchievementModal';
+import { supabase } from '../../src/lib/supabase';
+import DetailPageHeader from '../../src/components/DetailPageHeader';
+import GamificationBand from '../../src/components/GamificationBand';
+import ShareAchievementModal from '../../src/components/ShareAchievementModal';
 
 const { width } = Dimensions.get('window');
 

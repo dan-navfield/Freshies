@@ -20,8 +20,87 @@ interface PromptTemplate {
 }
 
 // In-memory cache for prompts (refresh every 5 minutes)
-const promptCache: Map<string, { prompt: string; timestamp: number }> = new Map();
+const promptCache: Map<string, { prompt: string; model_preferences: any; timestamp: number }> = new Map();
 const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
+const capabilityCache: Map<string, { state: string | null; timestamp: number }> = new Map();
+
+export type ActivePromptTemplate = {
+  content: string;
+  model_preferences: { provider?: string; model?: string };
+};
+
+export async function loadCapabilityState(toolName: string): Promise<'active' | 'paused' | 'needs_review' | null> {
+  const cacheKey = toolName;
+  const cached = capabilityCache.get(cacheKey);
+  if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+    const s = cached.state;
+    return s === 'active' || s === 'paused' || s === 'needs_review' ? (s as any) : null;
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from('ai_capabilities')
+      .select('state')
+      .eq('key', toolName)
+      .maybeSingle();
+
+    if (error) {
+      return null;
+    }
+
+    const state = data?.state || null;
+    capabilityCache.set(cacheKey, { state, timestamp: Date.now() });
+
+    return state === 'active' || state === 'paused' || state === 'needs_review' ? (state as any) : null;
+  } catch {
+    return null;
+  }
+}
+
+export async function isCapabilityPaused(toolName: string): Promise<boolean> {
+  const state = await loadCapabilityState(toolName);
+  return state === 'paused';
+}
+
+export async function loadActivePromptTemplate(
+  toolName: string,
+  role: 'system' | 'user' = 'system'
+): Promise<ActivePromptTemplate> {
+  const cacheKey = `${toolName}:${role}`;
+
+  const cached = promptCache.get(cacheKey);
+  if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+    return { content: cached.prompt, model_preferences: cached.model_preferences || {} };
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from('ai_prompt_templates')
+      .select('content, model_preferences')
+      .eq('tool_name', toolName)
+      .eq('role', role)
+      .eq('is_active', true)
+      .single();
+
+    if (error || !data) {
+      const fallback = getFallbackPrompt(toolName, role);
+      return { content: fallback, model_preferences: {} };
+    }
+
+    promptCache.set(cacheKey, {
+      prompt: data.content,
+      model_preferences: data.model_preferences || {},
+      timestamp: Date.now(),
+    });
+
+    return { content: data.content, model_preferences: data.model_preferences || {} };
+  } catch (error) {
+    console.error(`Error loading prompt for ${toolName}:${role}:`, error);
+    const fallback = getFallbackPrompt(toolName, role);
+    return { content: fallback, model_preferences: {} };
+  }
+}
 
 /**
  * Load active prompt from database
@@ -42,7 +121,7 @@ export async function loadActivePrompt(
   try {
     const { data, error } = await supabase
       .from('ai_prompt_templates')
-      .select('content')
+      .select('content, model_preferences')
       .eq('tool_name', toolName)
       .eq('role', role)
       .eq('is_active', true)
@@ -61,6 +140,7 @@ export async function loadActivePrompt(
     // Cache the result
     promptCache.set(cacheKey, {
       prompt: data.content,
+      model_preferences: data.model_preferences || {},
       timestamp: Date.now(),
     });
 
@@ -89,6 +169,7 @@ function getFallbackPrompt(toolName: string, role: 'system' | 'user'): string {
  */
 export function clearPromptCache(): void {
   promptCache.clear();
+  capabilityCache.clear();
 }
 
 /**

@@ -3,7 +3,7 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { colors, radii, spacing } from '../../../src/theme/tokens';
 import { ChevronLeft, CheckCircle, XCircle, AlertTriangle, Info, Plus } from 'lucide-react-native';
-import { supabase } from '../../../lib/supabase';
+import { supabase } from '../../../src/lib/supabase';
 import { approveProduct, declineProduct } from '../../../src/services/approvalService';
 import { ApprovalWithDetails, SEVERITY_CONFIG, FLAG_TYPES } from '../../../src/types/approval';
 

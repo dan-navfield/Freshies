@@ -1,18 +1,25 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, Image } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Pressable, Image, Dimensions } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
-import { 
-  Scan, Heart, Clock, Star, TrendingUp, Smile, CheckCircle, 
+import { LinearGradient } from 'expo-linear-gradient';
+import {
+  Scan, Heart, Clock, Star, TrendingUp, Smile, CheckCircle,
   Sun, Moon, Sunrise, ChevronRight, AlertCircle, BookOpen,
-  Droplets, Sparkles, Shield, Trophy, Zap
+  Droplets, Sparkles, Shield, Trophy, Zap, Play
 } from 'lucide-react-native';
 import { colors, radii, spacing } from '../../../src/theme/tokens';
 import { globalStyles } from '../../../src/theme/styles';
-import { useAuth } from '../../../contexts/AuthContext';
-import { supabase } from '../../../lib/supabase';
-import PageHeader from '../../../components/PageHeader';
-import FloatingAIButton from '../../../components/FloatingAIButton';
-import { childHomeStyles } from './home-styles';
+import { useAuth } from '../../../src/contexts/AuthContext';
+import { supabase } from '../../../src/lib/supabase';
+import PageHeader from '../../../src/components/PageHeader';
+import FloatingAIButton from '../../../src/components/FloatingAIButton';
+import { childHomeStyles } from '../../../src/styles/child/tabs/home-styles';
+import { ShelfItem } from '../../../src/types/shelf';
+import { shelfService } from '../../../src/services/shelfService';
+import ExpiryRing from '../../../src/components/ExpiryRing';
+import GamificationBand from '../../../src/components/GamificationBand';
+
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 /**
  * Child Home Screen
@@ -31,65 +38,94 @@ export default function ChildHomeScreen() {
   const [currentRoutine, setCurrentRoutine] = useState<any>(null);
   const [routineProgress, setRoutineProgress] = useState({ completed: 0, total: 0 });
   const [childProfileId, setChildProfileId] = useState<string | null>(null);
+  const [shelfItems, setShelfItems] = useState<ShelfItem[]>([]);
+  const [stats, setStats] = useState({ shelfCount: 0, wishlistCount: 0, streak: 7 });
+  const [selectedCategory, setSelectedCategory] = useState<string>('all');
+
+  // Mock popular products data
+  const popularProducts = [
+    { id: '1', name: 'SPF 30 Lotion', brand: 'CeraVe', category: 'sunscreen', grade: 'A', icon: 'sun', iconColor: '#FFD700' },
+    { id: '2', name: 'Gentle Cleanser', brand: 'Cetaphil', category: 'cleanser', grade: 'A', icon: 'droplets', iconColor: '#2196F3' },
+    { id: '3', name: 'Niacinamide', brand: 'The Ordinary', category: 'moisturizer', grade: 'B', icon: 'heart', iconColor: '#E91E63' },
+    { id: '4', name: 'Daily Moisturizer', brand: 'CeraVe', category: 'moisturizer', grade: 'A', icon: 'shield', iconColor: '#9b87f5' },
+    { id: '5', name: 'Lip Balm SPF', brand: "Burt's Bees", category: 'lip_care', grade: 'A', icon: 'heart', iconColor: '#E91E63' },
+    { id: '6', name: 'Hydrating Mist', brand: 'Mario Badescu', category: 'moisturizer', grade: 'B', icon: 'droplets', iconColor: '#2196F3' },
+  ];
+
+  const filteredProducts = selectedCategory === 'all'
+    ? popularProducts
+    : popularProducts.filter(p => p.category === selectedCategory);
 
   const fetchChildProfile = useCallback(async () => {
-      if (user?.id) {
-        // First try to get from child_profiles
-        const { data: childProfile } = await supabase
-          .from('child_profiles')
-          .select('display_name, avatar_config, avatar_url, id, skin_type, sensitivity_level')
-          .eq('user_id', user.id)
+    if (user?.id) {
+      // First try to get from child_profiles
+      const { data: childProfile } = await supabase
+        .from('child_profiles')
+        .select('display_name, avatar_config, avatar_url, id, skin_type, sensitivity_level')
+        .eq('user_id', user.id)
+        .single();
+
+      if (childProfile?.display_name) {
+        setUserName(childProfile.display_name);
+      } else {
+        // Fallback to profiles.first_name
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('first_name')
+          .eq('id', user.id)
           .single();
 
-        if (childProfile?.display_name) {
-          setUserName(childProfile.display_name);
-        } else {
-          // Fallback to profiles.first_name
-          const { data: profile } = await supabase
-            .from('profiles')
-            .select('first_name')
-            .eq('id', user.id)
-            .single();
-          
-          if (profile?.first_name) {
-            setUserName(profile.first_name);
-          }
-        }
-
-        // Get avatar - check for uploaded image first, then emoji
-        if (childProfile?.avatar_url) {
-          setUserAvatarUrl(childProfile.avatar_url);
-        } else if (childProfile?.avatar_config?.emoji) {
-          setUserAvatar(childProfile.avatar_config.emoji);
-        }
-
-        // Set skin profile
-        if (childProfile) {
-          setSkinProfile(childProfile);
-          setChildProfileId(childProfile.id);
-          
-          // Get main goal
-          const { data: goals } = await supabase
-            .from('child_goals')
-            .select('goal_type')
-            .eq('child_profile_id', childProfile.id)
-            .eq('is_active', true)
-            .order('priority', { ascending: false })
-            .limit(1);
-          
-          if (goals && goals.length > 0) {
-            setMainGoal(goals[0].goal_type);
-          }
-          
-          // Load current routine
-          await loadCurrentRoutine(childProfile.id);
+        if (profile?.first_name) {
+          setUserName(profile.first_name);
         }
       }
+
+      // Get avatar - check for uploaded image first, then emoji
+      if (childProfile?.avatar_url) {
+        setUserAvatarUrl(childProfile.avatar_url);
+      } else if (childProfile?.avatar_config?.emoji) {
+        setUserAvatar(childProfile.avatar_config.emoji);
+      }
+
+      // Set skin profile
+      if (childProfile) {
+        setSkinProfile(childProfile);
+        setChildProfileId(childProfile.id);
+
+        // Get main goal
+        const { data: goals } = await supabase
+          .from('child_goals')
+          .select('goal_type')
+          .eq('child_profile_id', childProfile.id)
+          .eq('is_active', true)
+          .order('priority', { ascending: false })
+          .limit(1);
+
+        if (goals && goals.length > 0) {
+          setMainGoal(goals[0].goal_type);
+        }
+
+        // Load current routine
+        await loadCurrentRoutine(childProfile.id);
+      }
+    }
   }, [user]);
 
   useEffect(() => {
     fetchChildProfile().finally(() => setLoading(false));
   }, [fetchChildProfile]);
+
+  // Load dynamic data (shelf items)
+  const loadDynamicData = useCallback(async (profileId: string) => {
+    try {
+      const userId = user?.id || '';
+      const items = await shelfService.getShelfItems(userId, profileId);
+      setShelfItems(items.slice(0, 4));
+      setStats(prev => ({ ...prev, shelfCount: items.length }));
+    } catch (error) {
+      console.error('Error loading shelf items:', error);
+    }
+  }, [user]);
 
   // Reload profile when screen comes into focus
   useFocusEffect(
@@ -97,58 +133,71 @@ export default function ChildHomeScreen() {
       fetchChildProfile();
       if (childProfileId) {
         loadCurrentRoutine(childProfileId);
+        loadDynamicData(childProfileId);
       }
-    }, [fetchChildProfile, childProfileId])
+    }, [fetchChildProfile, childProfileId, loadDynamicData])
   );
-  
+
   const loadCurrentRoutine = async (profileId: string) => {
     try {
       const currentHour = new Date().getHours();
-      let segment: 'morning' | 'afternoon' | 'evening';
-      
+
+      // Determine segments in order based on time of day
+      // Morning: before 12pm, Afternoon: 12pm-6pm, Evening: after 6pm
+      let segments: ('morning' | 'afternoon' | 'evening')[] = [];
+
       if (currentHour < 12) {
-        segment = 'morning';
-      } else if (currentHour < 17) {
-        segment = 'afternoon';
+        // Morning: show morning first, then afternoon, then evening
+        segments = ['morning', 'afternoon', 'evening'];
+      } else if (currentHour < 18) {
+        // Afternoon (12pm-6pm): show afternoon first, then evening
+        segments = ['afternoon', 'evening', 'morning'];
       } else {
-        segment = 'evening';
+        // Evening (after 6pm): show evening first
+        segments = ['evening', 'morning', 'afternoon'];
       }
-      
-      // Get active routine for current segment
-      const { data: routine } = await supabase
-        .from('custom_routines')
-        .select('*')
-        .eq('child_profile_id', profileId)
-        .eq('segment', segment)
-        .eq('is_active', true)
-        .single();
-      
-      if (routine) {
-        setCurrentRoutine(routine);
-        
-        // Get today's completion status
-        const today = new Date().toISOString().split('T')[0];
-        const { data: completions } = await supabase
-          .from('routine_step_completions')
-          .select('routine_step_id')
+
+      // Try to find the best routine to show
+      for (const segment of segments) {
+        const { data: routine } = await supabase
+          .from('custom_routines')
+          .select('*')
           .eq('child_profile_id', profileId)
-          .eq('routine_id', routine.id)
-          .eq('completion_date', today);
-        
-        const completedStepIds = new Set(completions?.map(c => c.routine_step_id) || []);
-        const totalSteps = routine.steps?.length || 0;
-        const completedSteps = routine.steps?.filter((step: any) => 
-          completedStepIds.has(step.id)
-        ).length || 0;
-        
-        setRoutineProgress({
-          completed: completedSteps,
-          total: totalSteps
-        });
-      } else {
-        setCurrentRoutine(null);
-        setRoutineProgress({ completed: 0, total: 0 });
+          .eq('segment', segment)
+          .eq('is_active', true)
+          .single();
+
+        if (routine) {
+          // Get today's completion status
+          const today = new Date().toISOString().split('T')[0];
+          const { data: completions } = await supabase
+            .from('routine_step_completions')
+            .select('routine_step_id')
+            .eq('child_profile_id', profileId)
+            .eq('routine_id', routine.id)
+            .eq('completion_date', today);
+
+          const completedStepIds = new Set(completions?.map(c => c.routine_step_id) || []);
+          const totalSteps = routine.steps?.length || 0;
+          const completedSteps = routine.steps?.filter((step: any) =>
+            completedStepIds.has(step.id)
+          ).length || 0;
+
+          // If this routine is NOT complete, or it's the first priority segment, use it
+          if (completedSteps < totalSteps || segment === segments[0]) {
+            setCurrentRoutine(routine);
+            setRoutineProgress({
+              completed: completedSteps,
+              total: totalSteps
+            });
+            return; // Found our routine, exit
+          }
+        }
       }
+
+      // No routine found
+      setCurrentRoutine(null);
+      setRoutineProgress({ completed: 0, total: 0 });
     } catch (error) {
       console.error('Error loading current routine:', error);
     }
@@ -181,7 +230,7 @@ export default function ChildHomeScreen() {
 
   const getSkinTip = () => {
     if (!skinProfile?.skin_type) return 'Keep your skin clean and moisturized';
-    
+
     const tips: Record<string, string> = {
       oily: 'Use oil-free, lightweight products',
       dry: 'Look for gentle, fragrance-free moisturizers',
@@ -189,7 +238,7 @@ export default function ChildHomeScreen() {
       normal: 'Keep it simple with gentle products',
       sensitive: 'Avoid fragrances and harsh ingredients',
     };
-    
+
     return tips[skinProfile.skin_type] || 'Keep your skin clean and moisturized';
   };
 
@@ -228,266 +277,525 @@ export default function ChildHomeScreen() {
         compact={false}
       />
 
-      {/* 1. Today's Routine Snapshot */}
-      {currentRoutine && (
-        <View style={styles.section}>
-          <Pressable style={styles.routineCard} onPress={() => router.push('/(child)/(tabs)/routine')}>
-            <View style={styles.routineHeader}>
-              <View style={styles.routineTimeIndicator}>
-                {currentRoutine.segment === 'morning' && <Sunrise size={20} color={colors.white} />}
-                {currentRoutine.segment === 'afternoon' && <Sun size={20} color={colors.white} />}
-                {currentRoutine.segment === 'evening' && <Moon size={20} color={colors.white} />}
-                <Text style={styles.routineTimeText}>
-                  {currentRoutine.segment.charAt(0).toUpperCase() + currentRoutine.segment.slice(1)} Routine
+      {/* GAMIFICATION BAND - Same as Learn page */}
+      <GamificationBand />
+
+      {/* NEXT ROUTINE - Redesigned card */}
+      <View style={{ marginHorizontal: spacing[4], marginTop: spacing[4], marginBottom: spacing[4] }}>
+        <Pressable
+          style={{
+            backgroundColor: colors.white,
+            borderRadius: 24,
+            overflow: 'hidden',
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 4 },
+            shadowOpacity: 0.1,
+            shadowRadius: 12,
+            elevation: 4,
+          }}
+          onPress={() => router.push('/(child)/(tabs)/routine')}
+        >
+          {/* Gradient accent bar at top */}
+          <LinearGradient
+            colors={[colors.purple, '#9C27B0']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={{ height: 6 }}
+          />
+
+          <View style={{ padding: spacing[4] }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+              <View style={{ flex: 1 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                  {currentRoutine?.segment === 'morning' ? (
+                    <Sunrise size={18} color={colors.purple} />
+                  ) : currentRoutine?.segment === 'afternoon' ? (
+                    <Sun size={18} color={colors.purple} />
+                  ) : (
+                    <Moon size={18} color={colors.purple} />
+                  )}
+                  <Text style={{ fontSize: 12, fontWeight: '600', color: colors.purple, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                    Next Up
+                  </Text>
+                </View>
+                <Text style={{ fontSize: 22, fontWeight: '700', color: colors.charcoal, marginBottom: 4 }}>
+                  {currentRoutine?.segment === 'morning' ? 'Morning' : currentRoutine?.segment === 'afternoon' ? 'Afternoon' : 'Evening'} Routine
                 </Text>
-              </View>
-              <ChevronRight size={20} color={colors.white} />
-            </View>
-            
-            <View style={styles.routineProgress}>
-              <View style={styles.progressRing}>
-                <Text style={styles.progressRingText}>
-                  {routineProgress.completed}/{routineProgress.total}
+                <Text style={{ fontSize: 14, color: colors.charcoal + '70' }}>
+                  {routineProgress.total > 0
+                    ? `${routineProgress.completed}/${routineProgress.total} steps complete`
+                    : 'No steps yet'}
                 </Text>
+
+                {/* Progress bar */}
+                <View style={{ marginTop: spacing[3], backgroundColor: colors.purple + '15', borderRadius: 6, height: 8 }}>
+                  <View style={{
+                    backgroundColor: colors.purple,
+                    borderRadius: 6,
+                    height: 8,
+                    width: `${routineProgress.total > 0 ? Math.round((routineProgress.completed / routineProgress.total) * 100) : 0}%`,
+                  }} />
+                </View>
               </View>
-              <View style={styles.routineProgressText}>
-                {routineProgress.completed === routineProgress.total ? (
-                  <>
-                    <Text style={styles.routineProgressTitle}>All done! 🎉</Text>
-                    <Text style={styles.routineProgressSubtitle}>You completed your routine</Text>
-                  </>
-                ) : routineProgress.completed > 0 ? (
-                  <>
-                    <Text style={styles.routineProgressTitle}>Nice work so far! ✨</Text>
-                    <Text style={styles.routineProgressSubtitle}>Keep going with your routine</Text>
-                  </>
+
+              {/* Circular play button */}
+              <View style={{
+                width: 56,
+                height: 56,
+                borderRadius: 28,
+                backgroundColor: colors.purple,
+                alignItems: 'center',
+                justifyContent: 'center',
+                marginLeft: spacing[4],
+                shadowColor: colors.purple,
+                shadowOffset: { width: 0, height: 4 },
+                shadowOpacity: 0.3,
+                shadowRadius: 8,
+                elevation: 4,
+              }}>
+                {routineProgress.completed === routineProgress.total && routineProgress.total > 0 ? (
+                  <CheckCircle size={24} color={colors.white} />
                 ) : (
-                  <>
-                    <Text style={styles.routineProgressTitle}>Ready to start? 🚀</Text>
-                    <Text style={styles.routineProgressSubtitle}>Begin your routine</Text>
-                  </>
+                  <Play size={24} color={colors.white} fill={colors.white} />
                 )}
               </View>
             </View>
-          </Pressable>
-        </View>
-      )}
-
-      {/* 2. Skin Profile Highlight */}
-      <View style={styles.section}>
-        <Pressable 
-          style={styles.skinProfileCard} 
-          onPress={() => {
-            console.log('Navigating to skin profile...');
-            router.push('/skin-profile');
-          }}>
-          <View style={styles.skinProfileHeader}>
-            <Droplets size={20} color={colors.purple} />
-            <Text style={styles.skinProfileTitle}>Your Skin Profile</Text>
-            <ChevronRight size={16} color={colors.charcoal} style={{ marginLeft: 'auto' }} />
-          </View>
-          
-          <View style={styles.skinProfileContent}>
-            <View style={styles.skinProfileRow}>
-              <Text style={styles.skinProfileLabel}>Skin Type:</Text>
-              <Text style={styles.skinProfileValue}>{getSkinTypeDisplay()}</Text>
-            </View>
-            <View style={styles.skinProfileRow}>
-              <Text style={styles.skinProfileLabel}>Main Goal:</Text>
-              <Text style={styles.skinProfileValue}>{getGoalLabel(mainGoal || undefined)}</Text>
-            </View>
-          </View>
-          
-          <View style={styles.skinProfileInsight}>
-            <Sparkles size={14} color={colors.purple} />
-            <Text style={styles.skinProfileInsightText}>
-              Tip: {getSkinTip()}
-            </Text>
           </View>
         </Pressable>
       </View>
 
-      {/* 3. Recommended for You */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitleLight}>Best for Your Skin Right Now ✨</Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.productCarousel}>
-          {[1, 2, 3].map((item) => (
-            <Pressable key={item} style={styles.productCard}>
-              <View style={styles.productImageContainer}>
-                <Image 
-                  source={{ uri: 'https://via.placeholder.com/180' }}
-                  style={styles.productImage}
-                />
-                <View style={styles.freshBadge}>
-                  <Text style={styles.freshScore}>9.2</Text>
-                </View>
-              </View>
-              <View style={styles.productInfo}>
-                <Text style={styles.productBrand}>CeraVe</Text>
-                <Text style={styles.productName}>Gentle Cleanser</Text>
-              </View>
+      {/* TIP OF THE DAY */}
+      <View style={{ marginHorizontal: spacing[4], marginBottom: spacing[4] }}>
+        <View style={{
+          backgroundColor: '#F3E5F5',
+          borderRadius: 20,
+          padding: spacing[4],
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: spacing[3],
+        }}>
+          <View style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: '#9C27B0', alignItems: 'center', justifyContent: 'center' }}>
+            <Sparkles size={24} color={colors.white} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={{ fontSize: 12, fontWeight: '600', color: '#7B1FA2', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 2 }}>💡 Tip of the Day</Text>
+            <Text style={{ fontSize: 14, color: '#4A148C', lineHeight: 20 }}>{getSkinTip()}</Text>
+          </View>
+        </View>
+      </View>
+
+      {/* ASK FRESHIE AI SECTION */}
+      <Pressable
+        style={{
+          marginHorizontal: spacing[4],
+          marginBottom: spacing[4],
+          backgroundColor: colors.purple,
+          borderRadius: 20,
+          padding: spacing[4],
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: spacing[3],
+          shadowColor: colors.purple,
+          shadowOffset: { width: 0, height: 4 },
+          shadowOpacity: 0.3,
+          shadowRadius: 12,
+          elevation: 6,
+        }}
+        onPress={() => router.push('/freshies-chat')}
+      >
+        <View style={{
+          width: 56,
+          height: 56,
+          borderRadius: 16,
+          backgroundColor: 'rgba(255,255,255,0.2)',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}>
+          <Sparkles size={28} color={colors.white} />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={{ fontSize: 18, fontWeight: '700', color: colors.white, marginBottom: 4 }}>
+            Ask FreshieAI
+          </Text>
+          <Text style={{ fontSize: 14, color: 'rgba(255,255,255,0.8)' }}>
+            Got a question about your skin? I'm here to help! ✨
+          </Text>
+        </View>
+        <View style={{
+          width: 40,
+          height: 40,
+          borderRadius: 20,
+          backgroundColor: 'rgba(255,255,255,0.2)',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}>
+          <ChevronRight size={22} color={colors.white} />
+        </View>
+      </Pressable>
+
+      {/* MY RECENT PRODUCTS - Dark background with swipeable cards */}
+      <View style={{
+        backgroundColor: '#1A1A1A',
+        paddingVertical: spacing[5],
+      }}>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing[4], paddingHorizontal: spacing[4] }}>
+          <Text style={{ fontSize: 20, fontWeight: '700', color: colors.white }}>My Recent Products</Text>
+          {shelfItems.length > 0 && (
+            <Pressable onPress={() => router.push('/(child)/(tabs)/shelf')}>
+              <Text style={{ color: colors.purple, fontWeight: '600', fontSize: 14 }}>See All →</Text>
             </Pressable>
-          ))}
+          )}
+        </View>
+
+        {shelfItems.length > 0 ? (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={{ paddingHorizontal: spacing[4], gap: spacing[3] }}
+          >
+            {shelfItems.map((item) => {
+              const daysOpen = item.opened_at ? Math.floor((new Date().getTime() - new Date(item.opened_at).getTime()) / (1000 * 60 * 60 * 24)) : 0;
+              return (
+                <Pressable
+                  key={item.id}
+                  style={{
+                    width: 160,
+                    backgroundColor: '#2A2A2A',
+                    borderRadius: 20,
+                    padding: spacing[3],
+                    alignItems: 'center',
+                  }}
+                  onPress={() => router.push(`/(shelf)/${item.id}`)}
+                >
+                  <View style={{ position: 'relative', marginBottom: spacing[3] }}>
+                    <Image
+                      source={{ uri: item.product_image_url || 'https://via.placeholder.com/80' }}
+                      style={{
+                        width: 100,
+                        height: 100,
+                        borderRadius: 16,
+                        backgroundColor: '#404040',
+                      }}
+                    />
+                    {item.pao_months && item.opened_at && (
+                      <View style={{ position: 'absolute', top: -5, right: -10 }}>
+                        <ExpiryRing paoMonths={item.pao_months} daysOpen={daysOpen} size={32} />
+                      </View>
+                    )}
+                  </View>
+                  <Text
+                    style={{
+                      fontSize: 11,
+                      color: colors.white + '60',
+                      textTransform: 'uppercase',
+                      fontWeight: '500',
+                      marginBottom: 4,
+                    }}
+                    numberOfLines={1}
+                  >
+                    {item.product_brand}
+                  </Text>
+                  <Text
+                    style={{
+                      fontSize: 14,
+                      fontWeight: '600',
+                      color: colors.white,
+                      textAlign: 'center',
+                    }}
+                    numberOfLines={2}
+                  >
+                    {item.product_name}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </ScrollView>
+        ) : (
+          <View style={{ paddingHorizontal: spacing[4] }}>
+            <Pressable
+              style={{
+                backgroundColor: '#2A2A2A',
+                borderRadius: 20,
+                padding: spacing[6],
+                alignItems: 'center',
+                borderWidth: 2,
+                borderColor: '#404040',
+                borderStyle: 'dashed',
+              }}
+              onPress={() => router.push('/(child)/(tabs)/scan')}
+            >
+              <View style={{
+                width: 60,
+                height: 60,
+                borderRadius: 30,
+                backgroundColor: colors.purple + '30',
+                alignItems: 'center',
+                justifyContent: 'center',
+                marginBottom: 12
+              }}>
+                <Scan size={28} color={colors.purple} />
+              </View>
+              <Text style={{ fontSize: 16, fontWeight: '600', color: colors.white }}>No products yet</Text>
+              <Text style={{ fontSize: 13, color: colors.white + '60', marginTop: 4 }}>Scan your first skincare product!</Text>
+            </Pressable>
+          </View>
+        )}
+      </View>
+
+      {/* POPULAR PRODUCTS IN YOUR AGE GROUP */}
+      <View style={{
+        backgroundColor: '#1A1A1A',
+        paddingVertical: spacing[5],
+        marginBottom: spacing[4],
+      }}>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing[3], paddingHorizontal: spacing[4] }}>
+          <Text style={{ fontSize: 20, fontWeight: '700', color: colors.white }}>Popular with Tweens</Text>
+          <Pressable onPress={() => router.push('/(child)/products')}>
+            <Text style={{ color: colors.purple, fontWeight: '600', fontSize: 14 }}>See All →</Text>
+          </Pressable>
+        </View>
+
+        {/* Category Filter Circles */}
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={{ paddingHorizontal: spacing[4], gap: spacing[3], marginBottom: spacing[4] }}
+        >
+          {/* Category Filter Buttons */}
+          {[
+            { id: 'all', label: 'All', icon: Star, color: colors.purple },
+            { id: 'sunscreen', label: 'Sunscreen', icon: Sun, color: colors.yellow },
+            { id: 'cleanser', label: 'Cleanser', icon: Droplets, color: '#2196F3' },
+            { id: 'moisturizer', label: 'Moisturizer', icon: Shield, color: colors.purple },
+            { id: 'lip_care', label: 'Lip Care', icon: Heart, color: '#E91E63' },
+          ].map((cat) => {
+            const IconComponent = cat.icon;
+            const isActive = selectedCategory === cat.id;
+            return (
+              <Pressable
+                key={cat.id}
+                style={{ alignItems: 'center' }}
+                onPress={() => setSelectedCategory(cat.id)}
+              >
+                <View style={{
+                  width: 56,
+                  height: 56,
+                  borderRadius: 28,
+                  backgroundColor: isActive ? colors.purple : '#2A2A2A',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  marginBottom: 6,
+                  borderWidth: isActive ? 0 : 2,
+                  borderColor: '#404040',
+                }}>
+                  <IconComponent size={24} color={isActive ? colors.white : cat.color} />
+                </View>
+                <Text style={{
+                  fontSize: 11,
+                  fontWeight: isActive ? '600' : '500',
+                  color: isActive ? colors.white : colors.white + '80'
+                }}>{cat.label}</Text>
+              </Pressable>
+            );
+          })}
+        </ScrollView>
+
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={{ paddingHorizontal: spacing[4], gap: spacing[3] }}
+        >
+          {filteredProducts.map((product) => {
+            const getIcon = () => {
+              switch (product.icon) {
+                case 'sun': return <Sun size={32} color={product.iconColor} />;
+                case 'droplets': return <Droplets size={32} color={product.iconColor} />;
+                case 'heart': return <Heart size={32} color={product.iconColor} />;
+                case 'shield': return <Shield size={32} color={product.iconColor} />;
+                default: return <Star size={32} color={product.iconColor} />;
+              }
+            };
+            return (
+              <Pressable
+                key={product.id}
+                style={{
+                  width: 120,
+                  backgroundColor: '#2A2A2A',
+                  borderRadius: 16,
+                  padding: spacing[2],
+                  alignItems: 'center',
+                }}
+                onPress={() => router.push('/(child)/products')}
+              >
+                <View style={{
+                  width: 80,
+                  height: 80,
+                  borderRadius: 12,
+                  backgroundColor: '#404040',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  marginBottom: spacing[2],
+                }}>
+                  {getIcon()}
+                </View>
+                <View style={{
+                  position: 'absolute',
+                  top: 8,
+                  right: 8,
+                  width: 24,
+                  height: 24,
+                  borderRadius: 12,
+                  backgroundColor: product.grade === 'A' ? colors.mint : colors.yellow,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}>
+                  <Text style={{ color: colors.white, fontSize: 11, fontWeight: '800' }}>{product.grade}</Text>
+                </View>
+                <Text style={{ fontSize: 10, color: colors.white + '60', textTransform: 'uppercase', fontWeight: '500' }} numberOfLines={1}>{product.brand}</Text>
+                <Text style={{ fontSize: 12, fontWeight: '600', color: colors.white, textAlign: 'center' }} numberOfLines={2}>{product.name}</Text>
+              </Pressable>
+            );
+          })}
         </ScrollView>
       </View>
 
-      {/* 4. Recently Scanned */}
-      <View style={styles.section}>
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitleLight}>Recently Scanned</Text>
-          <Pressable>
-            <Text style={styles.seeAllText}>See all</Text>
+      {/* LEARNING SECTION */}
+      <View style={{ marginHorizontal: spacing[4], marginBottom: spacing[4] }}>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing[3] }}>
+          <Text style={{ fontSize: 20, fontWeight: '700', color: colors.charcoal }}>Keep Learning</Text>
+          <Pressable onPress={() => router.push('/(child)/(tabs)/favorites')}>
+            <Text style={{ color: colors.purple, fontWeight: '600', fontSize: 14 }}>See All →</Text>
           </Pressable>
         </View>
-        <View style={styles.recentlyScannedRow}>
-          {[1, 2, 3, 4].map((item) => (
-            <Pressable key={item} style={styles.recentItem}>
-              <View style={styles.recentItemImage}>
-                <Image 
-                  source={{ uri: 'https://via.placeholder.com/60' }}
-                  style={styles.recentImage}
-                />
-              </View>
-              <View style={styles.recentItemScore}>
-                <Text style={styles.recentScoreText}>8.5</Text>
-              </View>
-            </Pressable>
-          ))}
-        </View>
-      </View>
 
-      {/* 5. Alerts & Reminders */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitleLight}>Alerts & Reminders 🔔</Text>
-        <View style={styles.alertsContainer}>
-          <Pressable style={styles.alertCard}>
-            <View style={styles.alertIcon}>
-              <AlertCircle size={16} color={colors.orange} />
-            </View>
-            <View style={styles.alertContent}>
-              <Text style={styles.alertTitle}>Cleanser expires soon</Text>
-              <Text style={styles.alertSubtitle}>Check your bathroom cabinet</Text>
-            </View>
-            <ChevronRight size={16} color={colors.charcoal} />
-          </Pressable>
-          
-          <Pressable style={styles.alertCard}>
-            <View style={styles.alertIcon}>
-              <CheckCircle size={16} color={colors.mint} />
-            </View>
-            <View style={styles.alertContent}>
-              <Text style={styles.alertTitle}>Parent approved new item</Text>
-              <Text style={styles.alertSubtitle}>Ready to add to your routine</Text>
-            </View>
-            <ChevronRight size={16} color={colors.charcoal} />
-          </Pressable>
-        </View>
-      </View>
-
-      {/* 6. Learning Highlight */}
-      <View style={styles.section}>
-        <Pressable style={styles.learningCard} onPress={() => router.push('/(child)/(tabs)/favorites')}>
-          <View style={styles.learningIcon}>
-            <BookOpen size={24} color={colors.purple} />
+        {/* Latest Quiz Card */}
+        <Pressable
+          style={{
+            backgroundColor: '#E8F5E9',
+            borderRadius: 20,
+            padding: spacing[4],
+            marginBottom: spacing[3],
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: spacing[3],
+          }}
+          onPress={() => router.push('/(child)/learn/tips')}
+        >
+          <View style={{
+            width: 56,
+            height: 56,
+            borderRadius: 16,
+            backgroundColor: '#4CAF50',
+            alignItems: 'center',
+            justifyContent: 'center'
+          }}>
+            <Trophy size={28} color={colors.white} />
           </View>
-          <View style={styles.learningContent}>
-            <Text style={styles.learningTitle}>New lesson: What causes dryness</Text>
-            <Text style={styles.learningSubtitle}>3 min read • Perfect for your skin type</Text>
+          <View style={{ flex: 1 }}>
+            <Text style={{ fontSize: 11, fontWeight: '600', color: '#2E7D32', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 2 }}>Quiz Time!</Text>
+            <Text style={{ fontSize: 16, fontWeight: '700', color: '#1B5E20', marginBottom: 2 }}>Skincare Basics</Text>
+            <Text style={{ fontSize: 13, color: '#388E3C' }}>Earn 50 points • 5 questions</Text>
           </View>
-          <ChevronRight size={20} color={colors.purple} />
+          <View style={{
+            width: 40,
+            height: 40,
+            borderRadius: 20,
+            backgroundColor: '#4CAF50',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}>
+            <Play size={18} color={colors.white} fill={colors.white} />
+          </View>
         </Pressable>
-      </View>
 
-      {/* Quick Actions */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitleLight}>Quick Actions ⚡</Text>
-        <View style={{ flexDirection: 'row', gap: 12 }}>
-          <Pressable 
-            style={[styles.learningCard, { flex: 1, backgroundColor: colors.purple + '10' }]} 
-            onPress={() => router.push('/(child)/routines')}
+        {/* Things to Learn - Horizontal scroll */}
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={{ gap: spacing[3], marginBottom: spacing[3] }}
+        >
+          {/* Learn Card 1 */}
+          <Pressable
+            style={{
+              width: 140,
+              backgroundColor: '#E3F2FD',
+              borderRadius: 16,
+              padding: spacing[3],
+              alignItems: 'center',
+            }}
+            onPress={() => router.push('/(child)/learn/tips')}
           >
-            <Zap size={20} color={colors.purple} />
-            <Text style={{ fontSize: 14, fontWeight: '600', color: colors.purple, marginLeft: 8 }}>
-              My Routines
-            </Text>
+            <View style={{
+              width: 48,
+              height: 48,
+              borderRadius: 24,
+              backgroundColor: '#2196F3',
+              alignItems: 'center',
+              justifyContent: 'center',
+              marginBottom: spacing[2],
+            }}>
+              <Droplets size={24} color={colors.white} />
+            </View>
+            <Text style={{ fontSize: 13, fontWeight: '600', color: '#1565C0', textAlign: 'center' }}>Why Moisturize?</Text>
+            <Text style={{ fontSize: 11, color: '#1976D2', marginTop: 2 }}>2 min read</Text>
           </Pressable>
-          <Pressable 
-            style={[styles.learningCard, { flex: 1, backgroundColor: colors.mint + '10' }]} 
-            onPress={() => router.push('/(child)/achievements-enhanced')}
+
+          {/* Learn Card 2 */}
+          <Pressable
+            style={{
+              width: 140,
+              backgroundColor: '#FFF3E0',
+              borderRadius: 16,
+              padding: spacing[3],
+              alignItems: 'center',
+            }}
+            onPress={() => router.push('/(child)/learn/tips')}
           >
-            <Trophy size={20} color={colors.mint} />
-            <Text style={{ fontSize: 14, fontWeight: '600', color: colors.mint, marginLeft: 8 }}>
-              Achievements
-            </Text>
+            <View style={{
+              width: 48,
+              height: 48,
+              borderRadius: 24,
+              backgroundColor: '#FF9800',
+              alignItems: 'center',
+              justifyContent: 'center',
+              marginBottom: spacing[2],
+            }}>
+              <Sun size={24} color={colors.white} />
+            </View>
+            <Text style={{ fontSize: 13, fontWeight: '600', color: '#E65100', textAlign: 'center' }}>SPF Explained</Text>
+            <Text style={{ fontSize: 11, color: '#F57C00', marginTop: 2 }}>3 min read</Text>
           </Pressable>
-        </View>
+
+          {/* Learn Card 3 */}
+          <Pressable
+            style={{
+              width: 140,
+              backgroundColor: '#FCE4EC',
+              borderRadius: 16,
+              padding: spacing[3],
+              alignItems: 'center',
+            }}
+            onPress={() => router.push('/(child)/learn/tips')}
+          >
+            <View style={{
+              width: 48,
+              height: 48,
+              borderRadius: 24,
+              backgroundColor: '#E91E63',
+              alignItems: 'center',
+              justifyContent: 'center',
+              marginBottom: spacing[2],
+            }}>
+              <Heart size={24} color={colors.white} />
+            </View>
+            <Text style={{ fontSize: 13, fontWeight: '600', color: '#C2185B', textAlign: 'center' }}>Sensitive Skin</Text>
+            <Text style={{ fontSize: 11, color: '#D81B60', marginTop: 2 }}>4 min read</Text>
+          </Pressable>
+        </ScrollView>
       </View>
 
-      {/* Your Progress */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitleLight}>Your Progress 🌟</Text>
-        <View style={styles.progressCard}>
-          <View style={styles.progressRow}>
-            <TrendingUp size={16} color={colors.mint} />
-            <Text style={styles.progressText}>You scanned 3 products this week</Text>
-          </View>
-          <View style={styles.progressRow}>
-            <CheckCircle size={16} color={colors.mint} />
-            <Text style={styles.progressText}>2 products added to favorites</Text>
-          </View>
-          <View style={styles.progressRow}>
-            <Star size={16} color={colors.mint} />
-            <Text style={styles.progressText}>7 day streak! Keep it up!</Text>
-          </View>
-        </View>
-      </View>
-
-      {/* My Stats */}
-      <View style={styles.section}>
-        <Pressable style={styles.statsCard}>
-          <Text style={styles.statsTitle}>My Stats</Text>
-          <View style={styles.statsGrid}>
-            <View style={styles.statItem}>
-              <Text style={styles.statNumber}>12</Text>
-              <Text style={styles.statLabel}>Scanned</Text>
-            </View>
-            <View style={styles.statItem}>
-              <Text style={[styles.statNumber, { color: colors.mint }]}>5</Text>
-              <Text style={styles.statLabel}>Favorites</Text>
-            </View>
-            <View style={styles.statItem}>
-              <Text style={[styles.statNumber, { color: colors.purple }]}>7</Text>
-              <Text style={styles.statLabel}>Day Streak</Text>
-            </View>
-          </View>
-        </Pressable>
-      </View>
-
-      {/* Ask FreshiesAI */}
-      <View style={[styles.section, { marginBottom: 100 }]}>
-        <Pressable style={styles.aiCard}>
-          <View style={styles.aiHeader}>
-            <View style={styles.aiIconContainer}>
-              <Text style={styles.aiIcon}>🤖</Text>
-            </View>
-            <View style={styles.aiHeaderText}>
-              <Text style={styles.aiTitle}>Ask FreshiesAI</Text>
-              <Text style={styles.aiSubtitle}>Get help with your skincare</Text>
-            </View>
-          </View>
-          <View style={styles.aiSuggestions}>
-            <Text style={styles.aiSuggestionTitle}>Try asking:</Text>
-            <Text style={styles.aiSuggestion}>• "Is this product safe for me?"</Text>
-            <Text style={styles.aiSuggestion}>• "What should I use for my skin?"</Text>
-            <Text style={styles.aiSuggestion}>• "How do I use this product?"</Text>
-          </View>
-          <View style={styles.aiButton}>
-            <Text style={styles.aiButtonText}>Start Conversation</Text>
-          </View>
-        </Pressable>
-      </View>
-
-      <FloatingAIButton />
+      {/* Bottom spacing */}
+      <View style={{ height: 80 }} />
     </ScrollView>
   );
 }

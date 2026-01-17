@@ -14,11 +14,104 @@ import {
   ClassifyInput,
   ClassifyOutput,
 } from './types';
+import { isCapabilityPaused, loadActivePromptTemplate } from '../config/promptLoader';
 
 // Initialize OpenAI client
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY || process.env.EXPO_PUBLIC_OPENAI_API_KEY,
 });
+
+const MISTRAL_API_KEY = process.env.MISTRAL_API_KEY || process.env.EXPO_PUBLIC_MISTRAL_API_KEY;
+const MISTRAL_BASE_URL = 'https://api.mistral.ai/v1/chat/completions';
+
+function escapeRegExp(input: string) {
+  return input.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function renderTemplate(template: string, vars: Record<string, string>) {
+  let out = template;
+  for (const [key, value] of Object.entries(vars)) {
+    const re = new RegExp(`{{\\s*${escapeRegExp(key)}\\s*}}`, 'g');
+    out = out.replace(re, value);
+  }
+  return out;
+}
+
+async function callMistralJSON<T>(args: {
+  systemPrompt: string;
+  userPrompt: string;
+  model?: string;
+  temperature?: number;
+}): Promise<T> {
+  if (!MISTRAL_API_KEY) {
+    throw new Error('Mistral API key not configured');
+  }
+
+  const response = await fetch(MISTRAL_BASE_URL, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${MISTRAL_API_KEY}`,
+    },
+    body: JSON.stringify({
+      model: args.model || 'mistral-small-latest',
+      messages: [
+        { role: 'system', content: args.systemPrompt },
+        { role: 'user', content: args.userPrompt },
+      ],
+      temperature: args.temperature ?? 0.7,
+      response_format: { type: 'json_object' },
+    }),
+  });
+
+  if (!response.ok) {
+    const text = await response.text().catch(() => '');
+    throw new Error(`Mistral API error: ${response.status} - ${text.slice(0, 300)}`);
+  }
+
+  const data = await response.json();
+  const content = data.choices?.[0]?.message?.content;
+  if (!content) throw new Error('No response from Mistral');
+  return JSON.parse(content) as T;
+}
+
+async function callLearnTool<T>(opts: {
+  toolName: string;
+  userPrompt: string;
+  systemFallback: string;
+  temperature: number;
+}): Promise<T> {
+  if (await isCapabilityPaused(opts.toolName)) {
+    throw new Error(`AI capability is paused: ${opts.toolName}`);
+  }
+
+  const systemTpl = await loadActivePromptTemplate(opts.toolName, 'system');
+  const provider = systemTpl.model_preferences?.provider || 'openai';
+  const model = systemTpl.model_preferences?.model;
+
+  const systemPrompt = systemTpl.content || opts.systemFallback;
+
+  if (provider === 'mistral') {
+    return callMistralJSON<T>({ systemPrompt, userPrompt: opts.userPrompt, model, temperature: opts.temperature });
+  }
+
+  if (provider !== 'openai') {
+    throw new Error(`Unsupported provider for Learn tools: ${provider}`);
+  }
+
+  const completion = await openai.chat.completions.create({
+    model: model || 'gpt-4-turbo-preview',
+    messages: [
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: opts.userPrompt },
+    ],
+    temperature: opts.temperature,
+    response_format: { type: 'json_object' },
+  });
+
+  const content = completion.choices[0].message.content || '{}';
+  return JSON.parse(content) as T;
+}
 
 // ============================================================================
 // Tool Definitions for MCP
@@ -326,30 +419,24 @@ export async function summariseSourceContent(
   input: SummariseInput,
   aiProvider: 'openai' | 'claude' = 'openai'
 ): Promise<SummariseOutput> {
-  const prompt = SUMMARISE_PROMPT_TEMPLATE
-    .replace('{{source_url}}', input.source_url)
-    .replace('{{source_name}}', input.source_name)
-    .replace('{{topic}}', input.topic)
-    .replace('{{source_text}}', input.source_text);
+  const dbUser = await loadActivePromptTemplate('summarise_source_content', 'user');
+  const base = dbUser.content && dbUser.content.trim().length > 0 ? dbUser.content : SUMMARISE_PROMPT_TEMPLATE;
 
-  const completion = await openai.chat.completions.create({
-    model: 'gpt-4-turbo-preview',
-    messages: [
-      {
-        role: 'system',
-        content: 'You are a content writer for Freshies, transforming medical content into parent-friendly articles.',
-      },
-      {
-        role: 'user',
-        content: prompt,
-      },
-    ],
-    temperature: 0.7,
-    response_format: { type: 'json_object' },
+  const prompt = renderTemplate(base, {
+    source_url: input.source_url,
+    source_name: input.source_name,
+    topic: input.topic,
+    source_text: input.source_text,
   });
 
-  const content = completion.choices[0].message.content || '{}';
-  return JSON.parse(content) as SummariseOutput;
+  void aiProvider;
+
+  return callLearnTool<SummariseOutput>({
+    toolName: 'summarise_source_content',
+    userPrompt: prompt,
+    systemFallback: 'You are a content writer for Freshies, transforming medical content into parent-friendly articles.',
+    temperature: 0.7,
+  });
 }
 
 /**
@@ -359,30 +446,24 @@ export async function rewriteForParents(
   input: RewriteInput,
   aiProvider: 'openai' | 'claude' = 'openai'
 ): Promise<RewriteOutput> {
-  const prompt = REWRITE_PROMPT_TEMPLATE
-    .replace('{{draft_text}}', input.draft_text)
-    .replace('{{tone}}', input.tone)
-    .replace('{{australian_english}}', String(input.australian_english))
-    .replace('{{avoid_medical_language}}', String(input.avoid_medical_language));
+  const dbUser = await loadActivePromptTemplate('rewrite_for_parents', 'user');
+  const base = dbUser.content && dbUser.content.trim().length > 0 ? dbUser.content : REWRITE_PROMPT_TEMPLATE;
 
-  const completion = await openai.chat.completions.create({
-    model: 'gpt-4-turbo-preview',
-    messages: [
-      {
-        role: 'system',
-        content: 'You are refining content for Freshies to match brand voice.',
-      },
-      {
-        role: 'user',
-        content: prompt,
-      },
-    ],
-    temperature: 0.5,
-    response_format: { type: 'json_object' },
+  const prompt = renderTemplate(base, {
+    draft_text: input.draft_text,
+    tone: input.tone,
+    australian_english: String(input.australian_english),
+    avoid_medical_language: String(input.avoid_medical_language),
   });
 
-  const content = completion.choices[0].message.content || '{}';
-  return JSON.parse(content) as RewriteOutput;
+  void aiProvider;
+
+  return callLearnTool<RewriteOutput>({
+    toolName: 'rewrite_for_parents',
+    userPrompt: prompt,
+    systemFallback: 'You are refining content for Freshies to match brand voice.',
+    temperature: 0.5,
+  });
 }
 
 /**
@@ -392,37 +473,30 @@ export async function extractFactsAndQAs(
   input: ExtractQAsInput,
   aiProvider: 'openai' | 'claude' = 'openai'
 ): Promise<ExtractQAsOutput> {
-  let prompt = EXTRACT_QAS_PROMPT_TEMPLATE
-    .replace('{{topic}}', input.topic)
-    .replace('{{max_questions}}', String(input.max_questions))
-    .replace('{{article_text}}', input.article_text);
+  const dbUser = await loadActivePromptTemplate('extract_facts_and_qas', 'user');
+  const base = dbUser.content && dbUser.content.trim().length > 0 ? dbUser.content : EXTRACT_QAS_PROMPT_TEMPLATE;
 
-  if (input.age_context) {
-    prompt = prompt.replace('{{#if age_context}}', '')
-      .replace('{{age_context}}', input.age_context)
-      .replace('{{/if}}', '');
-  } else {
-    prompt = prompt.replace(/{{#if age_context}}[\s\S]*?{{\/if}}/g, '');
-  }
-
-  const completion = await openai.chat.completions.create({
-    model: 'gpt-4-turbo-preview',
-    messages: [
-      {
-        role: 'system',
-        content: 'You are generating FAQs for Freshies Learn articles.',
-      },
-      {
-        role: 'user',
-        content: prompt,
-      },
-    ],
-    temperature: 0.7,
-    response_format: { type: 'json_object' },
+  let prompt = renderTemplate(base, {
+    topic: input.topic,
+    max_questions: String(input.max_questions),
+    article_text: input.article_text,
+    age_context: input.age_context || '',
   });
 
-  const content = completion.choices[0].message.content || '{}';
-  return JSON.parse(content) as ExtractQAsOutput;
+  if (!input.age_context) {
+    prompt = prompt.replace(/{{#if age_context}}[\s\S]*?{{\/if}}/g, '');
+  } else {
+    prompt = prompt.replace('{{#if age_context}}', '').replace('{{/if}}', '');
+  }
+
+  void aiProvider;
+
+  return callLearnTool<ExtractQAsOutput>({
+    toolName: 'extract_facts_and_qas',
+    userPrompt: prompt,
+    systemFallback: 'You are generating FAQs for Freshies Learn articles.',
+    temperature: 0.7,
+  });
 }
 
 /**
@@ -432,28 +506,23 @@ export async function classifyArticleTopic(
   input: ClassifyInput,
   aiProvider: 'openai' | 'claude' = 'openai'
 ): Promise<ClassifyOutput> {
-  const prompt = CLASSIFY_PROMPT_TEMPLATE
-    .replace('{{article_title}}', input.article_title)
-    .replace('{{article_text}}', input.article_text)
-    .replace('{{#each allowed_topics}}', input.allowed_topics.map(t => `- ${t}`).join('\n'))
+  const dbUser = await loadActivePromptTemplate('classify_article_topic', 'user');
+  const base = dbUser.content && dbUser.content.trim().length > 0 ? dbUser.content : CLASSIFY_PROMPT_TEMPLATE;
+
+  const prompt = renderTemplate(base, {
+    article_title: input.article_title,
+    article_text: input.article_text,
+    allowed_topics: input.allowed_topics.map((t) => `- ${t}`).join('\n'),
+  })
+    .replace('{{#each allowed_topics}}', input.allowed_topics.map((t) => `- ${t}`).join('\n'))
     .replace('{{/each}}', '');
 
-  const completion = await openai.chat.completions.create({
-    model: 'gpt-4-turbo-preview',
-    messages: [
-      {
-        role: 'system',
-        content: 'You are classifying articles for Freshies Learn categories.',
-      },
-      {
-        role: 'user',
-        content: prompt,
-      },
-    ],
-    temperature: 0.3,
-    response_format: { type: 'json_object' },
-  });
+  void aiProvider;
 
-  const content = completion.choices[0].message.content || '{}';
-  return JSON.parse(content) as ClassifyOutput;
+  return callLearnTool<ClassifyOutput>({
+    toolName: 'classify_article_topic',
+    userPrompt: prompt,
+    systemFallback: 'You are classifying articles for Freshies Learn categories.',
+    temperature: 0.3,
+  });
 }

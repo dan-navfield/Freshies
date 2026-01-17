@@ -3,7 +3,7 @@ import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { Heart, Shield, Sparkles } from 'lucide-react-native';
 import { colors, spacing, radii } from '../../src/theme/tokens';
-import { useAuth } from '../../contexts/AuthContext';
+import { useAuth } from '../../src/contexts/AuthContext';
 
 export default function ChildWelcomeScreen() {
   const { signOut } = useAuth();

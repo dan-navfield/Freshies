@@ -4,9 +4,9 @@ import { useRouter } from 'expo-router';
 import { Bell, ChevronLeft, Sun, Sunrise, Moon, Clock } from 'lucide-react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { colors, spacing, radii } from '../../src/theme/tokens';
-import { supabase } from '../../lib/supabase';
+import { supabase } from '../../src/lib/supabase';
 import { useChildProfile } from '../../src/contexts/ChildProfileContext';
-import { useAuth } from '../../contexts/AuthContext';
+import { useAuth } from '../../src/contexts/AuthContext';
 import {
   requestNotificationPermissions,
   scheduleAllRoutineNotifications,

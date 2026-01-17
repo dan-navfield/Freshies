@@ -18,14 +18,34 @@ export interface OCRResult {
 
 /**
  * Convert image URI to base64
+ * Handles both local file URIs and remote HTTP URLs
  */
 async function imageUriToBase64(uri: string): Promise<string> {
   try {
-    // Use expo-file-system for local file URIs
+    // Check if it's a remote URL (http:// or https://)
+    if (uri.startsWith('http://') || uri.startsWith('https://')) {
+      // For remote URLs, fetch and convert to base64
+      const response = await fetch(uri);
+      const blob = await response.blob();
+
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          const base64data = reader.result as string;
+          // Remove the data URL prefix (e.g., "data:image/jpeg;base64,")
+          const base64 = base64data.split(',')[1];
+          resolve(base64);
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
+    }
+
+    // For local file URIs, use expo-file-system
     const base64 = await FileSystem.readAsStringAsync(uri, {
       encoding: 'base64',
     });
-    
+
     return base64;
   } catch (error) {
     console.error('Error converting image to base64:', error);
@@ -115,9 +135,10 @@ export async function extractTextFromImage(imageUri: string): Promise<OCRResult>
  * Parse ingredient list from OCR text
  * Looks for common patterns like "Ingredients:", "INCI:", etc.
  */
-function parseIngredients(text: string): string[] {
+export function parseIngredients(text: string): string[] {
   // Common ingredient list markers
   const markers = [
+    /\d+\s*[-–]\s*ingredients?:?\s*/i, // e.g. "2021500 - INGREDIENTS:"
     /ingredients?:?\s*/i,
     /inci:?\s*/i,
     /composition:?\s*/i,
@@ -136,21 +157,43 @@ function parseIngredients(text: string): string[] {
     }
   }
 
+  // Normalize the text - replace various separators with commas
+  // Common separators: • · ● ■ ▪ | / (between words), newlines, periods followed by space and capital
+  let normalizedText = ingredientText
+    .replace(/[•·●■▪◦‣⁃]/g, ',') // Bullet points to comma
+    .replace(/\s*\|\s*/g, ',') // Pipe separator
+    .replace(/\s*\/\s+/g, '/') // Keep "/" for AQUA/WATER but normalize spacing
+    .replace(/\.\s+(?=[A-Z])/g, ',') // Period followed by capital letter = new ingredient
+    .replace(/\s{2,}/g, ' '); // Multiple spaces to single
+
   // Split by common separators
-  const ingredients = ingredientText
+  const ingredients = normalizedText
     .split(/[,;\n]/)
     .map(ing => ing.trim())
+    .map(ing => {
+      // Clean up ingredient name
+      return ing
+        .replace(/^\d+\s*[-–:]\s*/g, '') // Remove leading numbers/codes like "2021500 -"
+        .replace(/\([^)]*\)/g, '') // Remove parentheses content (optional)
+        .replace(/^\s*[-–•]\s*/, '') // Remove leading dashes/bullets
+        .trim();
+    })
     .filter(ing => {
       // Filter out very short strings and non-ingredient text
       if (ing.length < 3) return false;
       if (/^\d+$/.test(ing)) return false; // Just numbers
       if (/^[^a-zA-Z]+$/.test(ing)) return false; // No letters
+      // Filter out common non-ingredient phrases
+      if (/^may\s+contain/i.test(ing)) return false;
+      if (/^see\s+package/i.test(ing)) return false;
+      if (/^F\.?I\.?L\.?\s*[A-Z]\d+/i.test(ing)) return false; // F.I.L. codes
       return true;
     })
-    .slice(0, 20); // Take first 20 ingredients
+    .slice(0, 50); // Take up to 50 ingredients
 
   return ingredients;
 }
+
 
 /**
  * Create search query from ingredients
@@ -159,9 +202,9 @@ function parseIngredients(text: string): string[] {
 export function createSearchQueryFromIngredients(ingredients: string[]): string {
   // Take first 3-5 most distinctive ingredients
   const topIngredients = ingredients.slice(0, 5);
-  
+
   // Clean up ingredient names (remove percentages, parentheses, etc.)
-  const cleanedIngredients = topIngredients.map(ing => 
+  const cleanedIngredients = topIngredients.map(ing =>
     ing
       .replace(/\([^)]*\)/g, '') // Remove parentheses content
       .replace(/\d+%?/g, '') // Remove percentages
@@ -178,7 +221,7 @@ export function createSearchQueryFromIngredients(ingredients: string[]): string 
 export function extractProductName(text: string): string | null {
   // Get first few lines (usually contains product name)
   const lines = text.split('\n').slice(0, 5);
-  
+
   // Look for capitalized words (likely product/brand names)
   for (const line of lines) {
     const trimmed = line.trim();

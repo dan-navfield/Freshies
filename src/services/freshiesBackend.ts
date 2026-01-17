@@ -4,7 +4,7 @@
  */
 
 const BACKEND_URL = __DEV__ 
-  ? 'http://localhost:3000'  // Development
+  ? 'http://localhost:3001'  // Development
   : 'https://api.freshies.app'; // Production (update when deployed)
 
 const API_BASE_URL = BACKEND_URL;

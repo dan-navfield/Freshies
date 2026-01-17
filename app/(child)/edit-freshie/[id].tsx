@@ -2,10 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, Image, TouchableOpacity, StyleSheet, ScrollView, TextInput, Alert, Dimensions } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { ChevronLeft, Save, Smile, Tag, Type, Sparkles, X } from 'lucide-react-native';
-import DetailPageHeader from '../../../components/DetailPageHeader';
+import DetailPageHeader from '../../../src/components/DetailPageHeader';
 import { colors, spacing, radii } from '../../../src/theme/tokens';
-import { useAuth } from '../../../contexts/AuthContext';
-import { supabase } from '../../../lib/supabase';
+import { useAuth } from '../../../src/contexts/AuthContext';
+import { supabase } from '../../../src/lib/supabase';
 
 const { width } = Dimensions.get('window');
 const IMAGE_WIDTH = width - spacing[6] * 2;

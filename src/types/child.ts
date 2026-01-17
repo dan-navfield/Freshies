@@ -49,38 +49,40 @@ export interface ChildProfile {
   id: string;
   user_id: string;
   parent_id: string;
-  
+
   // Basic Info
   display_name: string;
   age_band?: AgeBand;
+  avatar_url?: string;
+  avatar_emoji?: string;
   avatar_config: AvatarConfig;
-  
+
   // Skin Profile
   skin_type?: SkinType;
   skin_type_source?: SkinTypeSource;
   sensitivity_level: number; // 1-5
   acne_tendency?: AcneTendency;
   oiliness_zones: OilinessZone[];
-  
+
   // Concerns
   concerns: SkinConcern[];
   concern_source?: ConcernSource;
-  
+
   // Environmental & Lifestyle
   environmental_factors: EnvironmentalFactor[];
   makeup_frequency: MakeupFrequency;
-  
+
   // Preferences & Restrictions
   texture_dislikes: TextureDislike[];
   ingredient_exclusions: string[];
   brand_preferences: string[];
-  
+
   // Parent Controls
   parent_guardrails: ParentGuardrails;
   wishlisting_enabled: boolean;
   selfie_analysis_enabled: boolean;
   routine_tracking_visible_to_parent: boolean;
-  
+
   // Timestamps
   created_at: string;
   updated_at: string;
@@ -92,6 +94,8 @@ export interface AvatarConfig {
   color?: string;
   accessory?: string;
   mood?: string;
+  emoji?: string;
+  backgroundColor?: string;
 }
 
 export interface ParentGuardrails {
@@ -115,16 +119,16 @@ export interface WishlistItem {
   child_profile_id: string;
   product_id?: string;
   product_data: ProductData;
-  
+
   // Approval Flow
   status: WishlistStatus;
   child_note?: string;
   parent_note?: string;
-  
+
   // Match Score
   skin_match_score?: number; // 0-100
   match_reasoning?: MatchReasoning;
-  
+
   // Timestamps
   requested_at: string;
   reviewed_at?: string;
@@ -155,16 +159,16 @@ export interface ChildRoutine {
   child_profile_id: string;
   time_of_day: TimeOfDay;
   steps: RoutineStep[];
-  
+
   // Tracking
   is_active: boolean;
   streak_count: number;
   last_completed_at?: string;
-  
+
   // Reminders
   reminder_enabled: boolean;
   reminder_time?: string; // HH:MM format
-  
+
   created_at: string;
   updated_at: string;
 }
@@ -192,14 +196,14 @@ export interface ProductExpiry {
   child_profile_id: string;
   product_id?: string;
   product_data: ProductData;
-  
+
   expiry_date: string; // ISO date
   opened_date?: string;
   purchase_date?: string;
-  
+
   alert_sent: boolean;
   alert_sent_at?: string;
-  
+
   created_at: string;
   updated_at: string;
 }

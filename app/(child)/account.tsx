@@ -2,7 +2,7 @@ import { View, Text, ScrollView, Pressable, StyleSheet, Image, Switch, Alert, Mo
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useEffect, useState, useCallback } from 'react';
 import { colors, radii, spacing } from '../../src/theme/tokens';
-import { useAuth } from '../../contexts/AuthContext';
+import { useAuth } from '../../src/contexts/AuthContext';
 import { 
   LogOut, 
   ChevronRight, 
@@ -22,8 +22,8 @@ import {
   AlertCircle,
   Edit3
 } from 'lucide-react-native';
-import { supabase } from '../../lib/supabase';
-import DetailPageHeader from '../../components/DetailPageHeader';
+import { supabase } from '../../src/lib/supabase';
+import DetailPageHeader from '../../src/components/DetailPageHeader';
 
 export default function ChildAccountScreen() {
   const router = useRouter();

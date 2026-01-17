@@ -2,7 +2,7 @@ import { View, Text, ScrollView, Pressable, StyleSheet, Image } from 'react-nati
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { colors, radii, spacing } from '../../src/theme/tokens';
-import { useAuth } from '../../contexts/AuthContext';
+import { useAuth } from '../../src/contexts/AuthContext';
 import { LogOut, ChevronRight, User, Bell, Shield, HelpCircle, FileText, Users, CheckCircle, Activity, Camera } from 'lucide-react-native';
 import { supabase } from '../../src/lib/supabase';
 
@@ -11,36 +11,41 @@ export default function AccountScreen() {
   const { user, signOut } = useAuth();
   const [unreadCount, setUnreadCount] = useState(0);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    async function loadUnreadCount() {
+    async function loadData() {
       if (!user?.id) return;
-      
-      const { count } = await supabase
-        .from('notifications')
-        .select('*', { count: 'exact', head: true })
-        .eq('user_id', user.id)
-        .eq('read', false);
-      
-      setUnreadCount(count || 0);
+
+      try {
+        // Fetch Notifications
+        const { count } = await supabase
+          .from('notifications')
+          .select('*', { count: 'exact', head: true })
+          .eq('user_id', user.id)
+          .eq('read', false);
+        setUnreadCount(count || 0);
+
+        // Fetch Avatar
+        const { data } = await supabase
+          .from('profiles')
+          .select('avatar_url')
+          .eq('id', user.id)
+          .single();
+
+        if (data?.avatar_url) {
+          setAvatarUrl(data.avatar_url);
+        }
+      } catch (error) {
+        console.error('Error loading account data:', error);
+      } finally {
+        setLoading(false);
+      }
     }
-    loadUnreadCount();
-    loadAvatar();
+    loadData();
   }, [user]);
 
-  const loadAvatar = async () => {
-    if (!user?.id) return;
-    
-    const { data } = await supabase
-      .from('profiles')
-      .select('avatar_url')
-      .eq('id', user.id)
-      .single();
-    
-    if (data?.avatar_url) {
-      setAvatarUrl(data.avatar_url);
-    }
-  };
+
 
   const handleLogout = async () => {
     try {
@@ -64,13 +69,16 @@ export default function AccountScreen() {
 
       {/* Profile Section */}
       <View style={styles.profileSection}>
-        <Pressable 
+        <Pressable
           style={styles.avatarContainer}
           onPress={() => router.push('/(parent)/avatar-selector' as any)}
         >
-          <Image 
-            source={{ uri: avatarUrl || 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&h=200&fit=crop&crop=faces' }}
-            style={styles.profileAvatar}
+          <Image
+            source={
+              loading ? undefined :
+                { uri: avatarUrl || 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&h=200&fit=crop&crop=faces' }
+            }
+            style={[styles.profileAvatar, loading && { backgroundColor: colors.charcoal }]}
           />
           <View style={styles.cameraIcon}>
             <Camera size={16} color={colors.white} strokeWidth={2.5} />
@@ -90,8 +98,8 @@ export default function AccountScreen() {
       {/* Account Settings */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Account Settings</Text>
-        
-        <Pressable 
+
+        <Pressable
           style={styles.menuItem}
           onPress={() => router.push('/family' as any)}
         >
@@ -104,7 +112,7 @@ export default function AccountScreen() {
           <ChevronRight size={20} color={colors.charcoal} />
         </Pressable>
 
-        <Pressable 
+        <Pressable
           style={styles.menuItem}
           onPress={() => router.push('/approvals' as any)}
         >
@@ -117,7 +125,7 @@ export default function AccountScreen() {
           <ChevronRight size={20} color={colors.charcoal} />
         </Pressable>
 
-        <Pressable 
+        <Pressable
           style={styles.menuItem}
           onPress={() => router.push('/activity' as any)}
         >
@@ -140,7 +148,7 @@ export default function AccountScreen() {
           <ChevronRight size={20} color={colors.charcoal} />
         </Pressable>
 
-        <Pressable 
+        <Pressable
           style={styles.menuItem}
           onPress={() => router.push('/notifications' as any)}
         >
@@ -167,7 +175,7 @@ export default function AccountScreen() {
       {/* Support */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Support</Text>
-        
+
         <Pressable style={styles.menuItem}>
           <View style={styles.menuItemLeft}>
             <View style={[styles.menuIcon, { backgroundColor: colors.lilac + '20' }]}>
@@ -191,7 +199,7 @@ export default function AccountScreen() {
 
       {/* Logout Button */}
       <View style={styles.section}>
-        <Pressable 
+        <Pressable
           style={styles.logoutButton}
           onPress={handleLogout}
         >

@@ -4,9 +4,9 @@ import { useState, useEffect } from 'react';
 import { colors, radii, spacing } from '../../src/theme/tokens';
 import { globalStyles } from '../../src/theme/styles';
 import { BookOpen, Droplet, Package, Shield, Users, Brain, Sparkles, Clock, TrendingUp } from 'lucide-react-native';
-import PageHeader from '../../components/PageHeader';
+import PageHeader from '../../src/components/PageHeader';
 import { supabase } from '../../src/lib/supabase';
-import FloatingAIButton from '../../components/FloatingAIButton';
+import FloatingAIButton from '../../src/components/FloatingAIButton';
 
 // Content pillars with article counts
 const CONTENT_PILLARS = [
@@ -105,10 +105,12 @@ export default function LearnScreen() {
 
   async function loadNewArticles() {
     try {
+      const now = new Date().toISOString();
       const { data, error } = await supabase
         .from('learn_articles')
         .select('*')
         .eq('status', 'published')
+        .or(`published_at.is.null,published_at.lte.${now}`)
         .order('created_at', { ascending: false })
         .limit(3);
 

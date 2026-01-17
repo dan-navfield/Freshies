@@ -4,7 +4,7 @@
  * to provide personalized routine recommendations
  */
 
-import { supabase } from '../../lib/supabase';
+import { supabase } from '../lib/supabase';
 
 export interface RoutineSuggestion {
   id: string;
@@ -38,10 +38,10 @@ export async function generateRoutineSuggestions(
 
     // Get child profile and skin analysis
     const skinAnalysis = await getSkinAnalysis(childProfileId);
-    
+
     // Get current routine
     const currentRoutine = await getCurrentRoutine(childProfileId);
-    
+
     // Get completion patterns
     const completionPatterns = await getCompletionPatterns(childProfileId);
 
@@ -57,7 +57,7 @@ export async function generateRoutineSuggestions(
       const priorityWeight = { high: 3, medium: 2, low: 1 };
       const aPriority = priorityWeight[a.priority];
       const bPriority = priorityWeight[b.priority];
-      
+
       if (aPriority !== bPriority) {
         return bPriority - aPriority;
       }
@@ -113,12 +113,20 @@ async function getCurrentRoutine(childProfileId: string): Promise<any[]> {
   return steps || [];
 }
 
+interface CompletionPatterns {
+  morning: { count: number; avgTime: number };
+  afternoon: { count: number; avgTime: number };
+  evening: { count: number; avgTime: number };
+  weekday: number;
+  weekend: number;
+}
+
 /**
  * Get completion patterns
  */
-async function getCompletionPatterns(childProfileId: string): Promise<any> {
+async function getCompletionPatterns(childProfileId: string): Promise<CompletionPatterns> {
   const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-  
+
   const { data } = await supabase
     .from('routine_completions')
     .select('*')
@@ -126,7 +134,7 @@ async function getCompletionPatterns(childProfileId: string): Promise<any> {
     .gte('completion_date', thirtyDaysAgo.toISOString().split('T')[0]);
 
   // Analyze patterns
-  const patterns = {
+  const patterns: CompletionPatterns = {
     morning: { count: 0, avgTime: 0 },
     afternoon: { count: 0, avgTime: 0 },
     evening: { count: 0, avgTime: 0 },
@@ -135,13 +143,15 @@ async function getCompletionPatterns(childProfileId: string): Promise<any> {
   };
 
   data?.forEach((completion) => {
-    const segment = completion.segment;
+    const segment = completion.segment as keyof Pick<CompletionPatterns, 'morning' | 'afternoon' | 'evening'>;
     const date = new Date(completion.completed_at);
     const hour = date.getHours();
     const dayOfWeek = date.getDay();
 
-    patterns[segment].count++;
-    patterns[segment].avgTime += hour;
+    if (patterns[segment]) {
+      patterns[segment].count++;
+      patterns[segment].avgTime += hour;
+    }
 
     if (dayOfWeek === 0 || dayOfWeek === 6) {
       patterns.weekend++;
@@ -151,7 +161,7 @@ async function getCompletionPatterns(childProfileId: string): Promise<any> {
   });
 
   // Calculate averages
-  Object.keys(patterns).forEach((key) => {
+  (['morning', 'afternoon', 'evening'] as const).forEach((key) => {
     if (patterns[key].count > 0) {
       patterns[key].avgTime = Math.round(patterns[key].avgTime / patterns[key].count);
     }
@@ -168,8 +178,8 @@ async function suggestMissingSteps(
   currentRoutine: any[]
 ): Promise<RoutineSuggestion[]> {
   const suggestions: RoutineSuggestion[] = [];
-  
-  const hasStepType = (type: string, segment: string) => 
+
+  const hasStepType = (type: string, segment: string) =>
     currentRoutine.some(s => s.step_type === type && s.segment === segment);
 
   // Essential steps everyone should have
@@ -230,18 +240,25 @@ async function suggestMissingSteps(
   return suggestions;
 }
 
+interface RoutineStep {
+  id: string;
+  step_type: string;
+  segment: string;
+  step_order: number;
+}
+
 /**
  * Suggest product swaps based on skin concerns
  */
 async function suggestProductSwaps(
   skinAnalysis: SkinAnalysis,
-  currentRoutine: any[]
+  currentRoutine: any[] // TODO: Replace any with RoutineStep[] when fully typed
 ): Promise<RoutineSuggestion[]> {
   const suggestions: RoutineSuggestion[] = [];
 
   // Suggest gentler products for sensitive skin
   if (skinAnalysis.sensitivity_level >= 3) {
-    const harshProducts = currentRoutine.filter(s => 
+    const harshProducts = currentRoutine.filter((s: RoutineStep) =>
       s.step_type === 'treatment' || s.step_type === 'cleanser'
     );
 
@@ -257,7 +274,7 @@ async function suggestProductSwaps(
         emoji: '🌸',
         suggested_action: {
           swap_to: 'fragrance-free',
-          step_ids: harshProducts.map(p => p.id),
+          step_ids: harshProducts.map((p: RoutineStep) => p.id),
         },
       });
     }
@@ -266,7 +283,7 @@ async function suggestProductSwaps(
   // Suggest acne-fighting products
   if (skinAnalysis.acne_tendency === 'frequent' || skinAnalysis.acne_tendency === 'occasional') {
     const hasTreatment = currentRoutine.some(s => s.step_type === 'treatment');
-    
+
     if (!hasTreatment) {
       suggestions.push({
         id: 'add-acne-treatment',
@@ -345,10 +362,10 @@ async function suggestSeasonalAdjustments(
 ): Promise<RoutineSuggestion[]> {
   const suggestions: RoutineSuggestion[] = [];
   const currentMonth = new Date().getMonth();
-  
+
   // Winter (Nov-Feb): Extra hydration
   if (currentMonth >= 10 || currentMonth <= 1) {
-    const hasRichMoisturizer = currentRoutine.some(s => 
+    const hasRichMoisturizer = currentRoutine.some(s =>
       s.step_type === 'moisturiser' && s.notes?.toLowerCase().includes('rich')
     );
 

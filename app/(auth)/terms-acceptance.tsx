@@ -12,8 +12,8 @@ import {
 import { useRouter } from 'expo-router';
 import { Check, FileText, Shield } from 'lucide-react-native';
 import { colors, spacing, radii } from '../../src/theme/tokens';
-import { supabase } from '../../lib/supabase';
-import { useAuth } from '../../contexts/AuthContext';
+import { supabase } from '../../src/lib/supabase';
+import { useAuth } from '../../src/contexts/AuthContext';
 import TermsOfService from './terms-of-service';
 import PrivacyPolicy from './privacy-policy';
 

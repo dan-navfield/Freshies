@@ -3,9 +3,9 @@ import { View, Text, ScrollView, StyleSheet, Image, Pressable } from 'react-nati
 import { useRouter } from 'expo-router';
 import { Users, Heart, Star, Sparkles, Shield } from 'lucide-react-native';
 import { colors, radii, spacing } from '../../src/theme/tokens';
-import { useAuth } from '../../contexts/AuthContext';
-import { supabase } from '../../lib/supabase';
-import DetailPageHeader from '../../components/DetailPageHeader';
+import { useAuth } from '../../src/contexts/AuthContext';
+import { supabase } from '../../src/lib/supabase';
+import DetailPageHeader from '../../src/components/DetailPageHeader';
 
 interface FamilyMember {
   id: string;

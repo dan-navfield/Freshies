@@ -10,9 +10,9 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { colors, spacing, radii } from '../../src/theme/tokens';
-import { useAuth } from '../../contexts/AuthContext';
+import { useAuth } from '../../src/contexts/AuthContext';
 import { supabase } from '../../src/lib/supabase';
-import DetailPageHeader from '../../components/DetailPageHeader';
+import DetailPageHeader from '../../src/components/DetailPageHeader';
 import { 
   Droplets, 
   Sun, 

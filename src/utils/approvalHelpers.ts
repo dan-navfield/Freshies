@@ -3,7 +3,7 @@
  * Functions for creating and managing approval requests
  */
 
-import { supabase } from '../../lib/supabase';
+import { supabase } from '../lib/supabase';
 
 export interface ApprovalRequest {
   id: string;

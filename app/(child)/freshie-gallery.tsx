@@ -4,10 +4,10 @@ import { useRouter } from 'expo-router';
 import { ChevronLeft, ChevronRight, Trash2, Share2, Calendar, Plus, Camera, Image as ImageIcon, Filter, Search, X, Edit2, Star, Download, Tag } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import DetailPageHeader from '../../components/DetailPageHeader';
+import DetailPageHeader from '../../src/components/DetailPageHeader';
 import { colors, spacing, radii } from '../../src/theme/tokens';
-import { useAuth } from '../../contexts/AuthContext';
-import { supabase } from '../../lib/supabase';
+import { useAuth } from '../../src/contexts/AuthContext';
+import { supabase } from '../../src/lib/supabase';
 
 const { width } = Dimensions.get('window');
 
@@ -25,6 +25,11 @@ interface MoodOption {
   emoji: string;
   word: string;
   color: string;
+}
+
+interface UserProfile {
+  id: string;
+  user_id: string;
 }
 
 interface Collection {
@@ -66,22 +71,22 @@ export default function FreshieGalleryScreen() {
   const [selectedFreshie, setSelectedFreshie] = useState<FreshieItem | null>(null);
   const [showUploadMenu, setShowUploadMenu] = useState(false);
   const [groupBy, setGroupBy] = useState<'date' | 'segment' | 'tags'>('date');
-  
+
   // Upload flow state
   const [uploadStep, setUploadStep] = useState<'mood' | 'collections' | 'note' | null>(null);
   const [pendingUploadUri, setPendingUploadUri] = useState<string | null>(null);
   const [selectedMood, setSelectedMood] = useState<MoodOption | null>(null);
   const [selectedCollections, setSelectedCollections] = useState<string[]>([]);
   const [uploadNote, setUploadNote] = useState('');
-  
+
   // Data from database
   const [moods, setMoods] = useState<MoodOption[]>([]);
   const [collections, setCollections] = useState<Collection[]>([]);
-  
+
   // Multi-select mode
   const [isSelectMode, setIsSelectMode] = useState(false);
   const [selectedFreshieIds, setSelectedFreshieIds] = useState<string[]>([]);
-  
+
   // Filter and search state
   const [showFilterMenu, setShowFilterMenu] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -92,7 +97,7 @@ export default function FreshieGalleryScreen() {
   const [filterTags, setFilterTags] = useState<string[]>([]);
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
   const [sortBy, setSortBy] = useState<'date' | 'mood' | 'favorites'>('date');
-  
+
   // New filter menu states
   const [sortByRecent, setSortByRecent] = useState(true);
   const [showFilterSubmenu, setShowFilterSubmenu] = useState(false);
@@ -102,7 +107,7 @@ export default function FreshieGalleryScreen() {
   const [filterShowFavorites, setFilterShowFavorites] = useState(false);
   const [filterShowEdited, setFilterShowEdited] = useState(false);
   const [filterShowWithNotes, setFilterShowWithNotes] = useState(false);
-  
+
   // View options states
   const [gridColumns, setGridColumns] = useState(3); // 3 or 4 columns
   const [showMoodBadges, setShowMoodBadges] = useState(true);
@@ -147,7 +152,7 @@ export default function FreshieGalleryScreen() {
         setShowFavoriteStars(parsed.showFavoriteStars ?? true);
         setShowTimeBadges(parsed.showTimeBadges ?? true);
       }
-      
+
       // Load recent searches
       const searches = await AsyncStorage.getItem('recent_searches');
       if (searches) {
@@ -184,7 +189,7 @@ export default function FreshieGalleryScreen() {
 
   const saveRecentSearch = async (query: string) => {
     if (!query.trim()) return;
-    
+
     try {
       const updated = [query, ...recentSearches.filter(s => s !== query)].slice(0, 5);
       setRecentSearches(updated);
@@ -205,18 +210,18 @@ export default function FreshieGalleryScreen() {
 
   const getSearchSuggestions = () => {
     if (!searchQuery.trim()) return [];
-    
+
     const query = searchQuery.toLowerCase();
-    const suggestions: Array<{type: string, value: string, emoji: string}> = [];
-    
+    const suggestions: Array<{ type: string, value: string, emoji: string }> = [];
+
     // Check if user is typing a prefix search
     const prefixMatch = query.match(/^(\w+):(.*)$/);
-    
+
     if (prefixMatch) {
       // User is typing prefix search - show relevant suggestions
       const [, prefix, value] = prefixMatch;
       const searchValue = value.trim().toLowerCase();
-      
+
       // Get all tags with this prefix
       const allTags = new Set<string>();
       freshies.forEach(f => f.tags?.forEach(tag => {
@@ -224,19 +229,19 @@ export default function FreshieGalleryScreen() {
           allTags.add(tag);
         }
       }));
-      
+
       Array.from(allTags).forEach(tag => {
         if (!searchValue || tag.toLowerCase().includes(searchValue)) {
           const emoji = prefix === 'brand' ? '🏷️' :
-                       prefix === 'product' ? '🧴' :
-                       prefix === 'color' ? '🎨' :
-                       prefix === 'category' ? '📦' :
-                       prefix === 'mood' ? '😊' :
-                       prefix === 'time' || prefix === 'segment' ? '🕐' : '🏷️';
+            prefix === 'product' ? '🧴' :
+              prefix === 'color' ? '🎨' :
+                prefix === 'category' ? '📦' :
+                  prefix === 'mood' ? '😊' :
+                    prefix === 'time' || prefix === 'segment' ? '🕐' : '🏷️';
           suggestions.push({ type: prefix, value: tag, emoji });
         }
       });
-      
+
       // If it's a mood prefix, also suggest mood options
       if (prefix === 'mood') {
         moods.forEach(mood => {
@@ -245,7 +250,7 @@ export default function FreshieGalleryScreen() {
           }
         });
       }
-      
+
       // If it's a segment/time prefix, suggest segments
       if (prefix === 'time' || prefix === 'segment') {
         ['morning', 'afternoon', 'evening'].forEach(seg => {
@@ -256,36 +261,36 @@ export default function FreshieGalleryScreen() {
       }
     } else {
       // Standard search - show all types of suggestions
-      
+
       // Mood suggestions
       moods.forEach(mood => {
         if (mood.word.toLowerCase().includes(query) || mood.emoji.includes(query)) {
           suggestions.push({ type: 'mood', value: mood.word, emoji: mood.emoji });
         }
       });
-      
+
       // Collection suggestions
       collections.forEach(collection => {
         if (collection.name.toLowerCase().includes(query)) {
           suggestions.push({ type: 'collection', value: collection.name, emoji: '📁' });
         }
       });
-      
+
       // Tag suggestions from existing freshies
       const allTags = new Set<string>();
       freshies.forEach(f => f.tags?.forEach(tag => allTags.add(tag)));
       Array.from(allTags).forEach(tag => {
         if (tag.toLowerCase().includes(query)) {
           const isPrefixTag = tag.includes(':');
-          const emoji = isPrefixTag ? 
+          const emoji = isPrefixTag ?
             (tag.startsWith('brand:') ? '🏷️' :
-             tag.startsWith('product:') ? '🧴' :
-             tag.startsWith('color:') ? '🎨' :
-             tag.startsWith('category:') ? '📦' : '🏷️') : '🏷️';
+              tag.startsWith('product:') ? '🧴' :
+                tag.startsWith('color:') ? '🎨' :
+                  tag.startsWith('category:') ? '📦' : '🏷️') : '🏷️';
           suggestions.push({ type: 'tag', value: tag, emoji });
         }
       });
-      
+
       // Show search prefix hints if no specific results
       if (suggestions.length === 0 && query.length >= 2) {
         const prefixHints = [
@@ -296,7 +301,7 @@ export default function FreshieGalleryScreen() {
         suggestions.push(...prefixHints);
       }
     }
-    
+
     return suggestions.slice(0, 8);
   };
 
@@ -369,10 +374,10 @@ export default function FreshieGalleryScreen() {
       } else {
         setCollections([]);
       }
-      
+
       // Debug: Log available collections
       console.log('Loaded collections:', collectionsData?.map(c => ({ id: c.id, name: c.name })));
-      
+
       // Clear any selected collections that no longer exist
       if (collectionsData) {
         const validIds = collectionsData.map(c => c.id);
@@ -431,19 +436,19 @@ export default function FreshieGalleryScreen() {
               // Delete from storage
               const path = freshie.photo_url.split('/').slice(-2).join('/');
               await supabase.storage.from('freshies').remove([path]);
-              
+
               // Delete from database
               const { error } = await supabase
                 .from('freshies')
                 .delete()
                 .eq('id', freshie.id);
-              
+
               if (error) throw error;
-              
+
               // Remove from local state
               setFreshies(prev => prev.filter(f => f.id !== freshie.id));
               setSelectedFreshie(null);
-              
+
               Alert.alert('✨ Freshie Deleted', 'Your photo has been removed');
             } catch (error) {
               console.error('Error deleting Freshie:', error);
@@ -457,7 +462,7 @@ export default function FreshieGalleryScreen() {
 
   const handleTakePhoto = async () => {
     setShowUploadMenu(false);
-    
+
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
     if (status !== 'granted') {
       Alert.alert('Permission Required', 'Camera access is needed to take photos');
@@ -474,7 +479,7 @@ export default function FreshieGalleryScreen() {
     if (!result.canceled && result.assets[0]) {
       // Refresh collections to ensure they're up to date
       await loadCollections();
-      
+
       setPendingUploadUri(result.assets[0].uri);
       setSelectedMood(null);
       setSelectedCollections([]);
@@ -485,7 +490,7 @@ export default function FreshieGalleryScreen() {
 
   const handleUploadFromLibrary = async () => {
     setShowUploadMenu(false);
-    
+
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
       Alert.alert('Permission Required', 'Photo library access is needed to upload photos');
@@ -502,7 +507,7 @@ export default function FreshieGalleryScreen() {
     if (!result.canceled && result.assets[0]) {
       // Refresh collections to ensure they're up to date
       await loadCollections();
-      
+
       setPendingUploadUri(result.assets[0].uri);
       setSelectedMood(null);
       setSelectedCollections([]);
@@ -530,11 +535,11 @@ export default function FreshieGalleryScreen() {
       // Upload image to storage
       const fileName = `freshie_${Date.now()}.jpg`;
       const filePath = `${user.id}/${fileName}`;
-      
+
       // For React Native, read the file as ArrayBuffer
       const response = await fetch(uri);
       const arrayBuffer = await response.arrayBuffer();
-      
+
       const { data: uploadData, error: uploadError } = await supabase.storage
         .from('freshies')
         .upload(filePath, arrayBuffer, {
@@ -562,7 +567,7 @@ export default function FreshieGalleryScreen() {
       else if (hour >= 17) segment = 'evening';
 
       // Create freshie record
-      const { data: newFreshie, error: freshieError} = await supabase
+      const { data: newFreshie, error: freshieError } = await supabase
         .from('freshies')
         .insert({
           child_profile_id: profile.id,
@@ -582,13 +587,13 @@ export default function FreshieGalleryScreen() {
       // Add to selected collections
       if (selectedCollections.length > 0) {
         console.log('Attempting to add to collections:', selectedCollections);
-        
+
         // First, verify all collection IDs exist in the database
         const { data: validCollections, error: validateError } = await supabase
           .from('collections')
           .select('id')
           .in('id', selectedCollections);
-        
+
         console.log('Valid collections found:', validCollections);
 
         if (validateError) {
@@ -596,7 +601,7 @@ export default function FreshieGalleryScreen() {
         } else if (validCollections) {
           const validCollectionIds = validCollections.map(c => c.id);
           const invalidIds = selectedCollections.filter(id => !validCollectionIds.includes(id));
-          
+
           if (invalidIds.length > 0) {
             console.warn('Some collections no longer exist:', invalidIds);
             // Refresh collections to update UI
@@ -662,68 +667,68 @@ export default function FreshieGalleryScreen() {
     const today = new Date();
     const yesterday = new Date(today);
     yesterday.setDate(yesterday.getDate() - 1);
-    
+
     const isToday = date.toDateString() === today.toDateString();
     const isYesterday = date.toDateString() === yesterday.toDateString();
-    
+
     if (isToday) return 'Today';
     if (isYesterday) return 'Yesterday';
-    
+
     const diffTime = today.getTime() - date.getTime();
     const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-    
+
     if (diffDays < 7) return 'This Week';
     if (diffDays < 30) return 'This Month';
-    
+
     return date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
   };
 
   // Filter and search freshies
   const getFilteredFreshies = () => {
     let filtered = [...freshies];
-    
+
     // Unified global search with prefix support
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
-      
+
       // Check if using prefix search (e.g., "brand:cerave", "color:purple")
       const prefixMatch = query.match(/^(\w+):(.+)$/);
-      
+
       if (prefixMatch) {
         // Prefix-based search
         const [, prefix, value] = prefixMatch;
         const searchValue = value.trim();
-        
+
         filtered = filtered.filter(freshie => {
           // Search in tags with prefix format
           const hasMatchingTag = freshie.tags?.some(tag => {
             const tagLower = tag.toLowerCase();
-            return tagLower === `${prefix}:${searchValue}` || 
-                   tagLower.startsWith(`${prefix}:`) && tagLower.includes(searchValue);
+            return tagLower === `${prefix}:${searchValue}` ||
+              tagLower.startsWith(`${prefix}:`) && tagLower.includes(searchValue);
           });
-          
+
           // Also support natural language matching for common prefixes
           switch (prefix) {
             case 'brand':
             case 'product':
             case 'color':
             case 'category':
-              return hasMatchingTag || 
-                     freshie.title?.toLowerCase().includes(searchValue) ||
-                     freshie.notes?.toLowerCase().includes(searchValue);
-            
+              return hasMatchingTag ||
+                freshie.title?.toLowerCase().includes(searchValue) ||
+                freshie.notes?.toLowerCase().includes(searchValue);
+
             case 'mood':
               return freshie.mood_word?.toLowerCase().includes(searchValue) ||
-                     freshie.mood_emoji?.includes(searchValue) ||
-                     hasMatchingTag;
-            
+                freshie.mood_emoji?.includes(searchValue) ||
+                hasMatchingTag;
+
             case 'time':
             case 'segment':
               return freshie.segment?.toLowerCase().includes(searchValue) || hasMatchingTag;
-            
+
             case 'tag':
               return hasMatchingTag;
-            
+
             default:
               return hasMatchingTag;
           }
@@ -732,64 +737,64 @@ export default function FreshieGalleryScreen() {
         // Standard search - match across all fields
         filtered = filtered.filter(freshie => {
           // Match title, notes
-          const matchesText = 
+          const matchesText =
             freshie.title?.toLowerCase().includes(query) ||
             freshie.notes?.toLowerCase().includes(query);
-          
+
           // Match tags (including prefix tags)
           const matchesTags = freshie.tags?.some(tag => {
             const tagLower = tag.toLowerCase();
             // Match full tag or the value part of prefix tags
-            return tagLower.includes(query) || 
-                   tagLower.split(':')[1]?.includes(query);
+            return tagLower.includes(query) ||
+              tagLower.split(':')[1]?.includes(query);
           });
-          
+
           // Match mood
-          const matchesMood = 
+          const matchesMood =
             freshie.mood_word?.toLowerCase().includes(query) ||
             freshie.mood_emoji?.includes(query);
-          
+
           // Match segment
           const matchesSegment = freshie.segment?.toLowerCase().includes(query);
-          
+
           return matchesText || matchesTags || matchesMood || matchesSegment;
         });
       }
     }
-    
+
     // Favorites filter
     if (showFavoritesOnly || filterShowFavorites) {
       filtered = filtered.filter(freshie => freshie.is_favorite);
     }
-    
+
     // Edited filter - show only freshies with decorations
     if (filterShowEdited) {
-      filtered = filtered.filter(freshie => 
+      filtered = filtered.filter(freshie =>
         freshie.decorations && Object.keys(freshie.decorations).length > 0
       );
     }
-    
+
     // With Notes filter - show only freshies with notes/captions
     if (filterShowWithNotes) {
-      filtered = filtered.filter(freshie => 
+      filtered = filtered.filter(freshie =>
         freshie.notes && freshie.notes.trim().length > 0
       );
     }
-    
+
     // Mood filter
     if (filterMoods.length > 0) {
-      filtered = filtered.filter(freshie => 
+      filtered = filtered.filter(freshie =>
         freshie.mood_emoji && filterMoods.includes(freshie.mood_emoji)
       );
     }
-    
+
     // Tags filter
     if (filterTags.length > 0) {
       filtered = filtered.filter(freshie =>
         freshie.tags && freshie.tags.some(tag => filterTags.includes(tag))
       );
     }
-    
+
     // Sort
     if (sortBy === 'favorites') {
       filtered.sort((a, b) => (b.is_favorite ? 1 : 0) - (a.is_favorite ? 1 : 0));
@@ -802,32 +807,32 @@ export default function FreshieGalleryScreen() {
       });
     }
     // date sorting is default (already sorted from query)
-    
+
     return filtered;
   };
 
   const groupFreshies = () => {
     const filtered = getFilteredFreshies();
-    
+
     if (groupBy === 'segment') {
       const grouped: { [key: string]: FreshieItem[] } = {
         morning: [],
         afternoon: [],
         evening: [],
       };
-      
+
       filtered.forEach(freshie => {
         if (grouped[freshie.segment]) {
           grouped[freshie.segment].push(freshie);
         }
       });
-      
+
       return Object.entries(grouped)
         .filter(([_, items]) => items.length > 0)
         .map(([segment, items]) => ({ title: segment, data: items }));
     } else {
       const grouped: { [key: string]: FreshieItem[] } = {};
-      
+
       filtered.forEach(freshie => {
         const group = getDateGroup(freshie.created_at);
         if (!grouped[group]) {
@@ -835,7 +840,7 @@ export default function FreshieGalleryScreen() {
         }
         grouped[group].push(freshie);
       });
-      
+
       const order = ['Today', 'Yesterday', 'This Week', 'This Month'];
       return Object.entries(grouped)
         .sort(([a], [b]) => {
@@ -865,7 +870,7 @@ export default function FreshieGalleryScreen() {
       {/* Controls */}
       <View style={styles.controlsContainer}>
         <View style={{ flex: 1 }} />
-        
+
         <View style={styles.rightControls}>
           {freshies.length > 0 && !isSelectMode && (
             <TouchableOpacity
@@ -878,7 +883,7 @@ export default function FreshieGalleryScreen() {
               <Filter size={20} color={colors.white} />
             </TouchableOpacity>
           )}
-          
+
           {freshies.length > 0 && (
             <TouchableOpacity
               style={styles.selectButton}
@@ -927,7 +932,7 @@ export default function FreshieGalleryScreen() {
                   <View style={styles.collectionPreviewGrid}>
                     {[0, 1, 2, 3].map((index) => (
                       <View key={index} style={styles.collectionPreviewCell}>
-                        {collection.preview_images![index] ? (
+                        {collection.preview_images?.[index] ? (
                           <Image
                             source={{ uri: collection.preview_images[index] }}
                             style={styles.collectionPreviewImage}
@@ -1032,7 +1037,7 @@ export default function FreshieGalleryScreen() {
                       <Text style={styles.suggestionText}>{search}</Text>
                     </TouchableOpacity>
                   ))}
-                  
+
                   {/* Search Examples/Hints */}
                   {recentSearches.length === 0 && (
                     <>
@@ -1060,8 +1065,8 @@ export default function FreshieGalleryScreen() {
       {/* Active Filters Display */}
       {(showFavoritesOnly || filterMoods.length > 0 || filterTags.length > 0 || filterCollections.length > 0) && (
         <View style={styles.activeFiltersContainer}>
-          <ScrollView 
-            horizontal 
+          <ScrollView
+            horizontal
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.activeFiltersContent}
           >
@@ -1109,7 +1114,7 @@ export default function FreshieGalleryScreen() {
         </View>
       )}
 
-      <ScrollView 
+      <ScrollView
         style={styles.scrollContent}
         refreshControl={
           <RefreshControl
@@ -1152,72 +1157,72 @@ export default function FreshieGalleryScreen() {
                   {group.data.map((freshie) => {
                     const isSelected = selectedFreshieIds.includes(freshie.id);
                     return (
-                    <TouchableOpacity
-                      key={freshie.id}
-                      style={[
-                        styles.gridItem,
-                        { width: IMAGE_SIZE, height: IMAGE_SIZE },
-                        isSelectMode && isSelected && styles.gridItemSelected
-                      ]}
-                      onPress={() => {
-                        if (isSelectMode) {
-                          // Toggle selection
-                          setSelectedFreshieIds(prev =>
-                            prev.includes(freshie.id)
-                              ? prev.filter(id => id !== freshie.id)
-                              : [...prev, freshie.id]
-                          );
-                        } else {
-                          setSelectedFreshie(freshie);
-                        }
-                      }}
-                      onLongPress={() => {
-                        if (!isSelectMode) {
-                          setIsSelectMode(true);
-                          setSelectedFreshieIds([freshie.id]);
-                        }
-                      }}
-                    >
-                      <Image
-                        source={{ uri: freshie.photo_url }}
-                        style={styles.gridImage}
-                        onError={(error) => console.log('Image load error:', error.nativeEvent.error, 'URL:', freshie.photo_url)}
-                        onLoad={() => console.log('Image loaded successfully:', freshie.photo_url)}
-                      />
-                      
-                      {/* Mood badge - top left */}
-                      {showMoodBadges && freshie.mood_emoji && (
-                        <View style={styles.moodBadge}>
-                          <Text style={styles.moodBadgeEmoji}>{freshie.mood_emoji}</Text>
-                        </View>
-                      )}
-                      
-                      {/* Favorite star - top right */}
-                      {showFavoriteStars && freshie.is_favorite && (
-                        <View style={styles.favoriteBadge}>
-                          <Text style={styles.favoriteBadgeEmoji}>⭐</Text>
-                        </View>
-                      )}
-                      
-                      {/* Segment badge - bottom right (only when grouped by date) */}
-                      {showTimeBadges && groupBy === 'date' && (
-                        <View style={[styles.segmentBadge, { backgroundColor: getSegmentColor(freshie.segment) }]}>
-                          <Text style={styles.segmentEmoji}>{getSegmentEmoji(freshie.segment)}</Text>
-                        </View>
-                      )}
-                      
-                      {/* Selection checkbox */}
-                      {isSelectMode && (
-                        <View style={styles.selectionCheckbox}>
-                          <View style={[
-                            styles.checkbox,
-                            isSelected && styles.checkboxSelected
-                          ]}>
-                            {isSelected && <Text style={styles.checkmark}>✓</Text>}
+                      <TouchableOpacity
+                        key={freshie.id}
+                        style={[
+                          styles.gridItem,
+                          { width: IMAGE_SIZE, height: IMAGE_SIZE },
+                          isSelectMode && isSelected && styles.gridItemSelected
+                        ]}
+                        onPress={() => {
+                          if (isSelectMode) {
+                            // Toggle selection
+                            setSelectedFreshieIds(prev =>
+                              prev.includes(freshie.id)
+                                ? prev.filter(id => id !== freshie.id)
+                                : [...prev, freshie.id]
+                            );
+                          } else {
+                            setSelectedFreshie(freshie);
+                          }
+                        }}
+                        onLongPress={() => {
+                          if (!isSelectMode) {
+                            setIsSelectMode(true);
+                            setSelectedFreshieIds([freshie.id]);
+                          }
+                        }}
+                      >
+                        <Image
+                          source={{ uri: freshie.photo_url }}
+                          style={styles.gridImage}
+                          onError={(error) => console.log('Image load error:', error.nativeEvent.error, 'URL:', freshie.photo_url)}
+                          onLoad={() => console.log('Image loaded successfully:', freshie.photo_url)}
+                        />
+
+                        {/* Mood badge - top left */}
+                        {showMoodBadges && freshie.mood_emoji && (
+                          <View style={styles.moodBadge}>
+                            <Text style={styles.moodBadgeEmoji}>{freshie.mood_emoji}</Text>
                           </View>
-                        </View>
-                      )}
-                    </TouchableOpacity>
+                        )}
+
+                        {/* Favorite star - top right */}
+                        {showFavoriteStars && freshie.is_favorite && (
+                          <View style={styles.favoriteBadge}>
+                            <Text style={styles.favoriteBadgeEmoji}>⭐</Text>
+                          </View>
+                        )}
+
+                        {/* Segment badge - bottom right (only when grouped by date) */}
+                        {showTimeBadges && groupBy === 'date' && (
+                          <View style={[styles.segmentBadge, { backgroundColor: getSegmentColor(freshie.segment) }]}>
+                            <Text style={styles.segmentEmoji}>{getSegmentEmoji(freshie.segment)}</Text>
+                          </View>
+                        )}
+
+                        {/* Selection checkbox */}
+                        {isSelectMode && (
+                          <View style={styles.selectionCheckbox}>
+                            <View style={[
+                              styles.checkbox,
+                              isSelected && styles.checkboxSelected
+                            ]}>
+                              {isSelected && <Text style={styles.checkmark}>✓</Text>}
+                            </View>
+                          </View>
+                        )}
+                      </TouchableOpacity>
                     );
                   })}
                 </View>
@@ -1248,7 +1253,7 @@ export default function FreshieGalleryScreen() {
 
                   if (error) throw error;
 
-                  setFreshies(prev => prev.map(f => 
+                  setFreshies(prev => prev.map(f =>
                     selectedFreshieIds.includes(f.id) ? { ...f, is_favorite: newFavoriteState } : f
                   ));
 
@@ -1411,7 +1416,7 @@ export default function FreshieGalleryScreen() {
               style={styles.fullImage}
               resizeMode="contain"
             />
-            
+
             {/* Modal Header */}
             <View style={styles.modalHeader}>
               <TouchableOpacity
@@ -1431,7 +1436,7 @@ export default function FreshieGalleryScreen() {
                     <Text style={styles.favoriteIcon}>⭐</Text>
                   )}
                 </View>
-                
+
                 {/* Mood display */}
                 {selectedFreshie.mood_emoji && selectedFreshie.mood_word && (
                   <View style={styles.moodDisplay}>
@@ -1439,7 +1444,7 @@ export default function FreshieGalleryScreen() {
                     <Text style={styles.moodDisplayText}>Feeling {selectedFreshie.mood_word}</Text>
                   </View>
                 )}
-                
+
                 <View style={styles.freshieMeta}>
                   <View style={[styles.segmentTag, { backgroundColor: getSegmentColor(selectedFreshie.segment) }]}>
                     <Text style={styles.segmentTagText}>
@@ -1519,7 +1524,7 @@ export default function FreshieGalleryScreen() {
           <View style={styles.uploadModalContent}>
             <Text style={styles.uploadModalTitle}>How are you feeling? 💭</Text>
             <Text style={styles.uploadModalSubtitle}>Pick a mood for this Freshie</Text>
-            
+
             <ScrollView style={styles.moodList} showsVerticalScrollIndicator={false}>
               <View style={styles.moodGrid}>
                 {[
@@ -1578,7 +1583,7 @@ export default function FreshieGalleryScreen() {
           <View style={styles.uploadModalContent}>
             <Text style={styles.uploadModalTitle}>Add to Collection 📁</Text>
             <Text style={styles.uploadModalSubtitle}>Pick collections for this Freshie (optional)</Text>
-            
+
             <ScrollView style={styles.collectionList} showsVerticalScrollIndicator={false}>
               {collections.length === 0 ? (
                 <Text style={styles.noCollectionsText}>Loading collections...</Text>
@@ -1591,9 +1596,9 @@ export default function FreshieGalleryScreen() {
                         key={collection.id}
                         style={[
                           styles.collectionOption,
-                          isSelected && { 
-                            backgroundColor: collection.color, 
-                            borderColor: collection.color 
+                          isSelected && {
+                            backgroundColor: collection.color,
+                            borderColor: collection.color
                           }
                         ]}
                         onPress={() => {
@@ -1607,7 +1612,7 @@ export default function FreshieGalleryScreen() {
                         <Text style={styles.collectionIcon}>{collection.icon}</Text>
                         <View style={styles.collectionInfo}>
                           <Text style={[
-                            styles.collectionName, 
+                            styles.collectionName,
                             isSelected && styles.collectionNameSelected
                           ]}>
                             {collection.name}
@@ -1666,7 +1671,7 @@ export default function FreshieGalleryScreen() {
           setShowMoodSubmenu(false);
         }}
       >
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.filterMenuOverlay}
           activeOpacity={1}
           onPress={() => {
@@ -1693,7 +1698,7 @@ export default function FreshieGalleryScreen() {
                   <Text style={styles.filterMenuItemText}>Sort by Recently Added</Text>
                   {sortByRecent && <Text style={styles.filterMenuCheck}>✓</Text>}
                 </TouchableOpacity>
-                
+
                 {/* Sort by Date Captured */}
                 <TouchableOpacity
                   style={styles.filterMenuItem}
@@ -1866,8 +1871,8 @@ export default function FreshieGalleryScreen() {
                 {/* Grid Size Options */}
                 <View style={styles.filterMenuSection}>
                   <Text style={styles.filterMenuSectionTitle}>Grid Size</Text>
-                  
-                  <TouchableOpacity 
+
+                  <TouchableOpacity
                     style={styles.filterMenuItem}
                     onPress={() => setGridColumns(4)}
                   >
@@ -1876,7 +1881,7 @@ export default function FreshieGalleryScreen() {
                     {gridColumns === 4 && <Text style={styles.filterMenuCheck}>✓</Text>}
                   </TouchableOpacity>
 
-                  <TouchableOpacity 
+                  <TouchableOpacity
                     style={styles.filterMenuItem}
                     onPress={() => setGridColumns(3)}
                   >
@@ -1891,8 +1896,8 @@ export default function FreshieGalleryScreen() {
                 {/* Show Options */}
                 <View style={styles.filterMenuSection}>
                   <Text style={styles.filterMenuSectionTitle}>Show:</Text>
-                  
-                  <TouchableOpacity 
+
+                  <TouchableOpacity
                     style={styles.filterMenuItem}
                     onPress={() => setShowMoodBadges(!showMoodBadges)}
                   >
@@ -1901,7 +1906,7 @@ export default function FreshieGalleryScreen() {
                     {showMoodBadges && <Text style={styles.filterMenuCheck}>✓</Text>}
                   </TouchableOpacity>
 
-                  <TouchableOpacity 
+                  <TouchableOpacity
                     style={styles.filterMenuItem}
                     onPress={() => setShowFavoriteStars(!showFavoriteStars)}
                   >
@@ -1910,7 +1915,7 @@ export default function FreshieGalleryScreen() {
                     {showFavoriteStars && <Text style={styles.filterMenuCheck}>✓</Text>}
                   </TouchableOpacity>
 
-                  <TouchableOpacity 
+                  <TouchableOpacity
                     style={styles.filterMenuItem}
                     onPress={() => setShowTimeBadges(!showTimeBadges)}
                   >
@@ -2521,7 +2526,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: colors.charcoal,
   },
-  freshieInfo: {
+  freshieInfoDuplicate: {
     flex: 1,
   },
   titleRow: {
@@ -2530,7 +2535,7 @@ const styles = StyleSheet.create({
     gap: spacing[2],
     marginBottom: spacing[2],
   },
-  freshieTitle: {
+  freshieTitleDuplicate: {
     fontSize: 18,
     fontWeight: '700',
     color: colors.charcoal,

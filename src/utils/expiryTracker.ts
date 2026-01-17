@@ -3,7 +3,7 @@
  * Monitors product expiry dates and sends alerts
  */
 
-import { supabase } from '../../lib/supabase';
+import { supabase } from '../lib/supabase';
 import * as Notifications from 'expo-notifications';
 
 export interface ExpiryAlert {

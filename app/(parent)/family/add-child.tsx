@@ -2,7 +2,7 @@ import { View, Text, ScrollView, Pressable, StyleSheet, TextInput, Platform } fr
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { colors, radii, spacing } from '../../../src/theme/tokens';
-import { useAuth } from '../../../contexts/AuthContext';
+import { useAuth } from '../../../src/contexts/AuthContext';
 import { ChevronLeft, Calendar, Shield } from 'lucide-react-native';
 import { addChild } from '../../../src/services/familyService';
 import { SafetyTier, SAFETY_TIERS, INDEPENDENCE_LEVELS } from '../../../src/types/family';

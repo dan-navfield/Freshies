@@ -221,10 +221,11 @@ export interface RouteQuestionOutput {
 // AI Provider Configuration
 // ============================================================================
 
-export type AIProvider = 'openai' | 'claude' | 'auto';
+export type AIProvider = 'openai' | 'claude' | 'mistral' | 'gemini' | 'auto';
 
 export interface AIOptions {
   provider?: AIProvider;
+  model?: string;
   temperature?: number;
   max_tokens?: number;
   timeout_ms?: number;

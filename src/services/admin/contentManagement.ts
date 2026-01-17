@@ -117,14 +117,15 @@ export async function moveToReview(
  */
 export async function publishArticle(
   articleId: string,
-  adminId?: string
+  adminId?: string,
+  options?: { publishedAt?: string }
 ): Promise<ArticleWorkflowResult> {
   try {
     const { error } = await supabase
       .from('learn_articles')
       .update({
         status: 'published',
-        published_at: new Date().toISOString(),
+        published_at: options?.publishedAt || new Date().toISOString(),
         published_by: adminId,
         updated_at: new Date().toISOString(),
       })

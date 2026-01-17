@@ -3,8 +3,8 @@ import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { PartyPopper, Sparkles } from 'lucide-react-native';
-import { supabase } from '../../lib/supabase';
-import { useAuth } from '../../contexts/AuthContext';
+import { supabase } from '../../src/lib/supabase';
+import { useAuth } from '../../src/contexts/AuthContext';
 import { colors, spacing, radii } from '../../src/theme/tokens';
 
 export default function ChildSuccessScreen() {

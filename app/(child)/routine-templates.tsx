@@ -4,9 +4,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { ArrowLeft, Check, Sparkles, Droplets, Shield } from 'lucide-react-native';
 import { colors } from '../../src/theme/tokens';
-import { useAuth } from '../../contexts/AuthContext';
-import { supabase } from '../../lib/supabase';
-import { templateStyles as styles } from './routine-templates-styles';
+import { useAuth } from '../../src/contexts/AuthContext';
+import { supabase } from '../../src/lib/supabase';
+import { templateStyles as styles } from '../../src/styles/child/routine-templates-styles';
 
 interface RoutineTemplate {
   id: string;

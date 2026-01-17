@@ -3,43 +3,43 @@ import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { colors, radii, spacing } from '../../src/theme/tokens';
 import { globalStyles } from '../../src/theme/styles';
-import { useAuth } from '../../contexts/AuthContext';
+import { useAuth } from '../../src/contexts/AuthContext';
 import { AlertCircle, CheckCircle, Clock, TrendingUp, Star, Smile, Frown, Meh, Users, ChevronRight, Bell } from 'lucide-react-native';
 import { searchProductsByName, lookupProductByBarcode } from '../../src/services/api/openBeautyFacts';
 import { searchMakeupByBrand } from '../../src/services/makeup/makeupApi';
-import PageHeader from '../../components/PageHeader';
-import FloatingAIButton from '../../components/FloatingAIButton';
-import ChildSwitcher from '../../components/ChildSwitcher';
+import PageHeader from '../../src/components/PageHeader';
+import FloatingAIButton from '../../src/components/FloatingAIButton';
+import ChildSwitcher from '../../src/components/ChildSwitcher';
 import { getChildren } from '../../src/services/familyService';
 import { ChildProfile } from '../../src/types/family';
 import { supabase } from '../../src/lib/supabase';
 
 // Mock data - replace with real data from your backend
 const MOCK_CHILDREN = [
-  { 
-    id: '1', 
-    name: 'Ruby', 
-    age: 11, 
-    status: 'caution', 
-    statusText: '1 product flagged', 
+  {
+    id: '1',
+    name: 'Ruby',
+    age: 11,
+    status: 'caution',
+    statusText: '1 product flagged',
     color: colors.orange,
     avatar: 'https://images.unsplash.com/photo-1503454537195-1dcabb73ffb9?w=200&h=200&fit=crop&crop=faces'
   },
-  { 
-    id: '2', 
-    name: 'Leo', 
-    age: 8, 
-    status: 'ok', 
-    statusText: 'New product added', 
+  {
+    id: '2',
+    name: 'Leo',
+    age: 8,
+    status: 'ok',
+    statusText: 'New product added',
     color: colors.mint,
     avatar: 'https://images.unsplash.com/photo-1519340241574-2cec6aef0c01?w=200&h=200&fit=crop&crop=faces'
   },
-  { 
-    id: '3', 
-    name: 'Elliot', 
-    age: 6, 
-    status: 'pending', 
-    statusText: 'Awaiting approval', 
+  {
+    id: '3',
+    name: 'Elliot',
+    age: 6,
+    status: 'pending',
+    statusText: 'Awaiting approval',
     color: colors.lilac,
     avatar: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=200&h=200&fit=crop&crop=faces'
   },
@@ -76,94 +76,124 @@ export default function HomeScreen() {
   const [selectedChildId, setSelectedChildId] = useState<string | null>(null);
   const [familyPromptDismissed, setFamilyPromptDismissed] = useState(false);
   const [unreadNotifications, setUnreadNotifications] = useState(0);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
 
-  // Fetch children and notifications on mount
+  const [productsLoading, setProductsLoading] = useState(true);
+
+  // 1. Critical Data - Blocking (Family, Notifications)
   useEffect(() => {
-    async function loadData() {
-      if (user?.id && userRole === 'parent') {
-        const childrenData = await getChildren(user.id);
-        setChildren(childrenData);
-        
-        // Fetch unread notifications count
-        const { count } = await supabase
-          .from('notifications')
-          .select('*', { count: 'exact', head: true })
-          .eq('user_id', user.id)
-          .eq('read', false);
-        
-        setUnreadNotifications(count || 0);
+    async function loadCriticalData() {
+      try {
+        setLoading(true);
+
+        if (user?.id && userRole === 'parent') {
+          const childrenData = await getChildren(user.id);
+          setChildren(childrenData);
+
+          const { count } = await supabase
+            .from('notifications')
+            .select('*', { count: 'exact', head: true })
+            .eq('user_id', user.id)
+            .eq('read', false);
+
+          setUnreadNotifications(count || 0);
+
+          // Fetch Avatar
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('avatar_url')
+            .eq('id', user.id)
+            .single();
+
+          if (profile?.avatar_url) {
+            setAvatarUrl(profile.avatar_url);
+          }
+        }
+      } catch (error) {
+        console.error('Error loading critical data:', error);
+      } finally {
+        setLoading(false);
       }
     }
-    loadData();
+
+    loadCriticalData();
   }, [user, userRole]);
 
-  // Fetch real products on mount
+  // 2. Background Data - Non-blocking (Products)
   useEffect(() => {
-    async function fetchProducts() {
+    async function loadBackgroundData() {
       try {
+        setProductsLoading(true);
         const allProducts: RecentProduct[] = [];
 
-        // 1. Fetch from Open Beauty Facts (barcodes)
+        // Open Beauty Facts
         const barcodes = [
-          '3337875696548', // La Roche-Posay Lipikar Baume
-          '3600523595426', // Bioderma Sensibio H2O
-          '3337871330453', // La Roche-Posay Anthelios
-          '3337875597180', // CeraVe Hydrating Cleanser
-          '3600550964097', // Garnier Micellar Water
-          '3574661530598', // Vichy Mineral 89
+          '3337875696548', '3600523595426', '3337871330453',
+          '3337875597180', '3600550964097', '3574661530598'
         ];
 
         const obfProducts = await Promise.all(
           barcodes.map(async (barcode, index) => {
-            const result = await lookupProductByBarcode(barcode);
-            if (result.found && result.product) {
-              const statuses: ('ok' | 'caution' | 'avoid')[] = ['ok', 'ok', 'caution', 'ok', 'ok', 'caution'];
-              return {
-                id: barcode,
-                name: result.product.name,
-                brand: result.product.brand,
-                status: statuses[index],
-                image: result.product.imageUrl || null,
-              };
-            }
+            try {
+              const result = await lookupProductByBarcode(barcode);
+              if (result.found && result.product) {
+                const statuses: ('ok' | 'caution' | 'avoid')[] = ['ok', 'ok', 'caution', 'ok', 'ok', 'caution'];
+                return {
+                  id: barcode,
+                  name: result.product.name,
+                  brand: result.product.brand,
+                  status: statuses[index],
+                  image: result.product.imageUrl || null,
+                };
+              }
+            } catch (e) { return null; }
             return null;
           })
         );
-
         allProducts.push(...obfProducts.filter((p): p is RecentProduct => p !== null));
 
-        // 2. Fetch from Makeup API (different brands)
+        // Makeup API - Load in parallel to save time
         try {
           const makeupBrands = ['maybelline', 'nyx', 'covergirl'];
-          
-          for (const brand of makeupBrands) {
+          const makeupPromises = makeupBrands.map(async (brand) => {
             const makeupResults = await searchMakeupByBrand(brand);
-            
-            // Take first 2 products from each brand
-            const brandProducts = makeupResults.slice(0, 2).map((product, index) => ({
+            return makeupResults.slice(0, 2).map((product, index) => ({
               id: `makeup-${product.id}`,
               name: product.name,
               brand: product.brand,
               status: (index % 3 === 0 ? 'caution' : 'ok') as 'ok' | 'caution' | 'avoid',
               image: product.image_link || product.api_featured_image || null,
             }));
-            
-            allProducts.push(...brandProducts);
-          }
-        } catch (makeupError) {
-          // Silently handle - Makeup API is optional
-        }
+          });
+
+          const makeupGroups = await Promise.all(makeupPromises);
+          makeupGroups.forEach(group => allProducts.push(...group));
+
+        } catch (e) { /* ignore */ }
 
         setRecentProducts(allProducts);
+
       } catch (error) {
-        console.error('Error fetching products:', error);
+        console.error('Error loading background data:', error);
       } finally {
-        setLoading(false);
+        setProductsLoading(false);
       }
     }
 
-    fetchProducts();
-  }, []);
+    // Only load products after critical data is started relative to user
+    if (user?.id) {
+      loadBackgroundData();
+    }
+  }, [user]);
+
+  if (loading) {
+    return (
+      <View style={[globalStyles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+        <Clock size={40} color={colors.purple} />
+        <Text style={{ marginTop: 16, color: colors.charcoal, fontSize: 16 }}>Loading your family dashboard...</Text>
+      </View>
+    );
+  }
 
   return (
     <ScrollView style={globalStyles.scrollContainer}>
@@ -172,6 +202,7 @@ export default function HomeScreen() {
         title={`Hi ${userName} 👋`}
         subtitle="Here's what's happening with your family"
         showAvatar={true}
+        avatarUrl={avatarUrl}
         showSearch={true}
         searchPlaceholder="Search products, brands, ingredients..."
         compact={true}
@@ -192,7 +223,7 @@ export default function HomeScreen() {
       {/* Manage Family Button - For parents */}
       {userRole === 'parent' && !familyPromptDismissed && (
         <View style={styles.manageFamilySection}>
-          <Pressable 
+          <Pressable
             style={styles.manageFamilyButton}
             onPress={() => router.push('/family' as any)}
           >
@@ -201,17 +232,17 @@ export default function HomeScreen() {
             </View>
             <View style={styles.manageFamilyContent}>
               <Text style={styles.manageFamilyTitle}>
-                {children.length === 0 
+                {children.length === 0
                   ? 'Add your first child'
                   : children.length === 1
-                  ? 'You have 1 Child. Tap to Add/Manage'
-                  : `You have ${children.length} Children. Tap to Add/Manage`
+                    ? 'You have 1 Child. Tap to Add/Manage'
+                    : `You have ${children.length} Children. Tap to Add/Manage`
                 }
               </Text>
             </View>
             <ChevronRight size={18} color="rgba(255, 255, 255, 0.6)" />
             {children.length > 0 && (
-              <Pressable 
+              <Pressable
                 onPress={(e) => {
                   e.stopPropagation();
                   setFamilyPromptDismissed(true);
@@ -229,9 +260,9 @@ export default function HomeScreen() {
       {/* Section 1: Family Information Zone */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Family Updates</Text>
-        
+
         {/* Family Update Banner - Navigate to Approvals */}
-        <Pressable 
+        <Pressable
           style={styles.updateBanner}
           onPress={() => router.push('/approvals' as any)}
         >
@@ -243,7 +274,7 @@ export default function HomeScreen() {
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.childRow}>
           {MOCK_CHILDREN.map((child) => (
             <Pressable key={child.id} style={styles.childCard}>
-              <Image 
+              <Image
                 source={{ uri: child.avatar }}
                 style={styles.childAvatar}
               />
@@ -282,14 +313,14 @@ export default function HomeScreen() {
       {/* Section 2: Product-Focused Surfaces */}
       <View style={styles.productSection}>
         <Text style={styles.productSectionTitle}>Recently Scanned</Text>
-        {loading ? (
+        {productsLoading ? (
           <View style={styles.loadingContainer}>
             <Text style={styles.loadingText}>Loading products...</Text>
           </View>
         ) : (
-          <ScrollView 
-            horizontal 
-            showsHorizontalScrollIndicator={false} 
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
             style={styles.productRow}
             contentContainerStyle={styles.productRowContent}
             snapToInterval={196} // card width (180) + margin (16)
@@ -302,13 +333,13 @@ export default function HomeScreen() {
               const rating = isBadProduct ? '2.8' : (3.5 + Math.random() * 1.5).toFixed(1);
               const reviewCount = Math.floor(Math.random() * 50) + 5;
               const freshScore = isBadProduct ? 32 : Math.floor(60 + Math.random() * 35);
-              
+
               return (
                 <Pressable key={product.id} style={styles.productCard}>
                   <View style={styles.productImageContainer}>
                     {product.image ? (
-                      <Image 
-                        source={{ uri: product.image }} 
+                      <Image
+                        source={{ uri: product.image }}
                         style={styles.productImage}
                         resizeMode="cover"
                       />
@@ -322,14 +353,14 @@ export default function HomeScreen() {
                       <Text style={styles.freshScore}>{freshScore}</Text>
                     </View>
                   </View>
-                  
+
                   <View style={styles.productInfo}>
                     <View style={styles.brandRow}>
                       <Text style={styles.productBrand}>{product.brand}</Text>
                       <Text style={styles.verifiedBadge}>✓</Text>
                     </View>
                     <Text style={styles.productName} numberOfLines={2}>{product.name}</Text>
-                    
+
                     {/* Star Rating */}
                     <View style={styles.ratingRow}>
                       <View style={styles.starsContainer}>
@@ -347,25 +378,25 @@ export default function HomeScreen() {
                         {rating} ({reviewCount})
                       </Text>
                     </View>
-                    
+
                     {/* Would Buy Again */}
                     <View style={styles.buyAgainRow}>
                       {freshScore < 50 ? (
-                        <Frown 
-                          size={14} 
-                          color={colors.orange} 
+                        <Frown
+                          size={14}
+                          color={colors.orange}
                           style={{ marginRight: spacing[1] }}
                         />
                       ) : freshScore < 70 ? (
-                        <Meh 
-                          size={14} 
-                          color={colors.orange} 
+                        <Meh
+                          size={14}
+                          color={colors.orange}
                           style={{ marginRight: spacing[1] }}
                         />
                       ) : (
-                        <Smile 
-                          size={14} 
-                          color='rgba(255, 255, 255, 0.7)' 
+                        <Smile
+                          size={14}
+                          color='rgba(255, 255, 255, 0.7)'
                           style={{ marginRight: spacing[1] }}
                         />
                       )}
@@ -379,10 +410,10 @@ export default function HomeScreen() {
             })}
           </ScrollView>
         )}
-        
+
         {/* Go to My Scans Link */}
         {!loading && recentProducts.length > 0 && (
-          <Pressable 
+          <Pressable
             style={styles.viewAllLink}
             onPress={() => router.push('/(tabs)/history')}
           >
@@ -452,7 +483,7 @@ export default function HomeScreen() {
         <Text style={styles.sectionTitle}>Routines to Review</Text>
         {MOCK_CHILDREN.map((child) => (
           <Pressable key={child.id} style={styles.routineCard}>
-            <Image 
+            <Image
               source={{ uri: child.avatar }}
               style={styles.routineAvatar}
             />

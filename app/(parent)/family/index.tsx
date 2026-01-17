@@ -2,7 +2,7 @@ import { View, Text, ScrollView, Pressable, StyleSheet, Image } from 'react-nati
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useEffect, useState, useCallback } from 'react';
 import { colors, radii, spacing } from '../../../src/theme/tokens';
-import { useAuth } from '../../../contexts/AuthContext';
+import { useAuth } from '../../../src/contexts/AuthContext';
 import { Users, Plus, Settings, AlertCircle, CheckCircle, Clock, ChevronLeft, Package } from 'lucide-react-native';
 import { getChildren } from '../../../src/services/familyService';
 import { ChildProfile, SAFETY_TIERS } from '../../../src/types/family';

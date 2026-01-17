@@ -9,16 +9,16 @@ import {
   Image,
 } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
-import DetailPageHeader from '../../components/DetailPageHeader';
-import GamificationBand from '../../components/GamificationBand';
+import DetailPageHeader from '../../src/components/DetailPageHeader';
+import GamificationBand from '../../src/components/GamificationBand';
 import { useChildProfile } from '../../src/contexts/ChildProfileContext';
 import { routineService } from '../../src/services/routineService';
 import { colors, spacing, radii } from '../../src/theme/tokens';
-import { 
-  Plus, 
-  Clock, 
-  CheckCircle, 
-  Edit3, 
+import {
+  Plus,
+  Clock,
+  CheckCircle,
+  Edit3,
   Trash2,
   Sun,
   Moon,
@@ -61,10 +61,14 @@ export default function RoutinesScreen() {
 
   const loadRoutines = async () => {
     if (!childProfile?.id) return;
-    
+
     try {
-      const userRoutines = await routineService.getRoutines(childProfile.id);
-      setRoutines(userRoutines || []);
+      const result = await routineService.getRoutines(childProfile.id);
+      if (result.ok) {
+        setRoutines(result.value || []);
+      } else {
+        console.error('Error loading routines:', result.error);
+      }
     } catch (error) {
       console.error('Error loading routines:', error);
     } finally {
@@ -77,10 +81,14 @@ export default function RoutinesScreen() {
     const newActiveDays = activeDays.includes(dayIndex)
       ? activeDays.filter(d => d !== dayIndex)
       : [...activeDays, dayIndex].sort();
-    
+
     try {
-      await routineService.updateActiveDays(routineId, newActiveDays);
-      await loadRoutines();
+      const result = await routineService.updateActiveDays(routineId, newActiveDays);
+      if (result.ok) {
+        await loadRoutines();
+      } else {
+        throw result.error;
+      }
     } catch (error) {
       Alert.alert('Error', 'Failed to update active days');
     }
@@ -97,9 +105,13 @@ export default function RoutinesScreen() {
           style: 'destructive',
           onPress: async () => {
             try {
-              await routineService.deleteRoutine(routineId);
-              await loadRoutines();
-              Alert.alert('Success', 'Routine deleted');
+              const result = await routineService.deleteRoutine(routineId);
+              if (result.ok) {
+                await loadRoutines();
+                Alert.alert('Success', 'Routine deleted');
+              } else {
+                throw result.error;
+              }
             } catch (error) {
               Alert.alert('Error', 'Failed to delete routine');
             }
@@ -111,11 +123,15 @@ export default function RoutinesScreen() {
 
   const setActiveRoutine = async (routineId: string, segment: string) => {
     if (!childProfile?.id) return;
-    
+
     try {
-      await routineService.setActiveRoutine(childProfile.id, routineId, segment as 'morning' | 'afternoon' | 'evening');
-      await loadRoutines();
-      Alert.alert('Success', 'Routine set as active');
+      const result = await routineService.setActiveRoutine(childProfile.id, routineId, segment as 'morning' | 'afternoon' | 'evening');
+      if (result.ok) {
+        await loadRoutines();
+        Alert.alert('Success', 'Routine set as active');
+      } else {
+        throw result.error;
+      }
     } catch (error) {
       Alert.alert('Error', 'Failed to set active routine');
     }
@@ -126,7 +142,7 @@ export default function RoutinesScreen() {
     // For now, navigate to the builder in guided mode
     router.push({
       pathname: '/(child)/routine-builder-enhanced',
-      params: { 
+      params: {
         routineId: routine.id,
         segment: routine.segment,
         guided: 'true'
@@ -147,8 +163,8 @@ export default function RoutinesScreen() {
     return `${daysAgo} days ago`;
   };
 
-  const filteredRoutines = selectedFilter === 'all' 
-    ? routines 
+  const filteredRoutines = selectedFilter === 'all'
+    ? routines
     : routines.filter(r => r.segment === selectedFilter);
 
   const showCreateMenu = () => {
@@ -184,39 +200,39 @@ export default function RoutinesScreen() {
 
   return (
     <View style={styles.container}>
-      <DetailPageHeader 
+      <DetailPageHeader
         title="Routine Library"
         subtitle="Manage your skincare routines 📚"
       />
-      
+
       <GamificationBand />
 
       {/* Filter Tabs */}
       <View style={styles.filterTabs}>
-        <TouchableOpacity 
+        <TouchableOpacity
           style={[styles.filterTab, selectedFilter === 'all' && styles.filterTabActive]}
           onPress={() => setSelectedFilter('all')}
         >
           <Text style={[styles.filterTabText, selectedFilter === 'all' && styles.filterTabTextActive]}>All</Text>
         </TouchableOpacity>
-        
-        <TouchableOpacity 
+
+        <TouchableOpacity
           style={[styles.filterTab, selectedFilter === 'morning' && styles.filterTabActive]}
           onPress={() => setSelectedFilter('morning')}
         >
           <Sun size={16} color={selectedFilter === 'morning' ? colors.white : colors.yellow} />
           <Text style={[styles.filterTabText, selectedFilter === 'morning' && styles.filterTabTextActive]}>Morning</Text>
         </TouchableOpacity>
-        
-        <TouchableOpacity 
+
+        <TouchableOpacity
           style={[styles.filterTab, selectedFilter === 'afternoon' && styles.filterTabActive]}
           onPress={() => setSelectedFilter('afternoon')}
         >
           <Sunset size={16} color={selectedFilter === 'afternoon' ? colors.white : colors.mint} />
           <Text style={[styles.filterTabText, selectedFilter === 'afternoon' && styles.filterTabTextActive]}>Afternoon</Text>
         </TouchableOpacity>
-        
-        <TouchableOpacity 
+
+        <TouchableOpacity
           style={[styles.filterTab, selectedFilter === 'evening' && styles.filterTabActive]}
           onPress={() => setSelectedFilter('evening')}
         >
@@ -226,13 +242,13 @@ export default function RoutinesScreen() {
       </View>
 
       {/* Saved Routines */}
-      <ScrollView 
+      <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
         <Text style={styles.sectionTitle}>Saved Routines</Text>
-        
+
         {loading ? (
           <Text style={styles.emptyText}>Loading...</Text>
         ) : filteredRoutines.length === 0 ? (
@@ -241,9 +257,9 @@ export default function RoutinesScreen() {
               <Plus size={32} color={colors.mint} strokeWidth={2.5} />
             </View>
             <Text style={styles.emptyStateTitle}>
-              {selectedFilter === 'morning' ? 'Morning Routine' : 
-               selectedFilter === 'afternoon' ? 'Afternoon Routine' : 
-               selectedFilter === 'evening' ? 'Evening Routine' : 'Create a Routine'}
+              {selectedFilter === 'morning' ? 'Morning Routine' :
+                selectedFilter === 'afternoon' ? 'Afternoon Routine' :
+                  selectedFilter === 'evening' ? 'Evening Routine' : 'Create a Routine'}
             </Text>
             <Text style={styles.emptyStateSubtitle}>No routine set</Text>
             <Text style={styles.emptyStateTap}>Tap to create</Text>
@@ -253,114 +269,114 @@ export default function RoutinesScreen() {
             const Icon = routine.segment === 'morning' ? Sun : routine.segment === 'afternoon' ? Sunset : Moon;
             const iconColor = colors.white;
             const iconBgColor = colors.purple;
-            
+
             return (
-            <View key={routine.id} style={styles.routineCard}>
-              {/* Header with Icon and Title */}
-              <View style={styles.cardHeader}>
-                <View style={[styles.iconCircle, { backgroundColor: iconBgColor }]}>
-                  <Icon size={32} color={iconColor} />
-                </View>
-                <View style={styles.headerText}>
-                  <Text style={styles.routineName}>{routine.name}</Text>
-                  <View style={{ flexDirection: 'row', gap: spacing[2] }}>
-                    {routine.status === 'draft' && (
-                      <View style={styles.draftBadge}>
-                        <Text style={styles.draftBadgeText}>Draft</Text>
-                      </View>
-                    )}
-                    {routine.is_active && (
-                      <View style={styles.activeBadge}>
-                        <Text style={styles.activeBadgeText}>Active</Text>
-                      </View>
-                    )}
+              <View key={routine.id} style={styles.routineCard}>
+                {/* Header with Icon and Title */}
+                <View style={styles.cardHeader}>
+                  <View style={[styles.iconCircle, { backgroundColor: iconBgColor }]}>
+                    <Icon size={32} color={iconColor} />
+                  </View>
+                  <View style={styles.headerText}>
+                    <Text style={styles.routineName}>{routine.name}</Text>
+                    <View style={{ flexDirection: 'row', gap: spacing[2] }}>
+                      {routine.status === 'draft' && (
+                        <View style={styles.draftBadge}>
+                          <Text style={styles.draftBadgeText}>Draft</Text>
+                        </View>
+                      )}
+                      {routine.is_active && (
+                        <View style={styles.activeBadge}>
+                          <Text style={styles.activeBadgeText}>Active</Text>
+                        </View>
+                      )}
+                    </View>
+                  </View>
+                  {/* Action Buttons in Header */}
+                  <View style={styles.headerActions}>
+                    <TouchableOpacity
+                      style={styles.headerActionButton}
+                      onPress={() => router.push({
+                        pathname: '/(child)/routine-builder-enhanced',
+                        params: {
+                          routineId: routine.id,
+                          segment: routine.segment
+                        }
+                      })}
+                    >
+                      <Edit3 size={18} color={colors.purple} />
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      style={styles.headerActionButton}
+                      onPress={() => deleteRoutine(routine.id, routine.name)}
+                    >
+                      <Trash2 size={18} color={colors.red} />
+                    </TouchableOpacity>
                   </View>
                 </View>
-                {/* Action Buttons in Header */}
-                <View style={styles.headerActions}>
-                  <TouchableOpacity 
-                    style={styles.headerActionButton}
-                    onPress={() => router.push({
-                      pathname: '/(child)/routine-builder-enhanced',
-                      params: { 
-                        routineId: routine.id,
-                        segment: routine.segment
-                      }
-                    })}
-                  >
-                    <Edit3 size={18} color={colors.purple} />
-                  </TouchableOpacity>
-                  
-                  <TouchableOpacity 
-                    style={styles.headerActionButton}
-                    onPress={() => deleteRoutine(routine.id, routine.name)}
-                  >
-                    <Trash2 size={18} color={colors.red} />
-                  </TouchableOpacity>
+
+                {/* Active Days Label */}
+                <Text style={styles.activeDaysLabel}>Active days</Text>
+
+                {/* Day Circles - showing active days */}
+                <View style={styles.dayCircles}>
+                  {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((day, index) => {
+                    const activeDays = routine.active_days || [0, 1, 2, 3, 4, 5, 6];
+                    const isActive = activeDays.includes(index);
+                    return (
+                      <TouchableOpacity
+                        key={index}
+                        style={[
+                          styles.dayCircle,
+                          isActive && styles.dayCircleActive
+                        ]}
+                        onPress={() => toggleActiveDay(routine.id, index, routine.active_days)}
+                      >
+                        <Text style={[
+                          styles.dayText,
+                          isActive && styles.dayTextActive
+                        ]}>
+                          {day}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+
+                {/* Duration and Steps */}
+                <View style={styles.metaRow}>
+                  <View style={styles.metaItem}>
+                    <Clock size={16} color={colors.charcoal} />
+                    <Text style={styles.metaText}>{formatDuration(routine.total_duration)}</Text>
+                  </View>
+                  <View style={styles.metaItem}>
+                    <Text style={styles.metaText}>{routine.steps.length} steps</Text>
+                  </View>
+                  <View style={styles.metaItem}>
+                    <CheckCircle size={16} color={colors.success} />
+                    <Text style={styles.metaText}>{routine.completion_count}x</Text>
+                  </View>
+                </View>
+
+                {/* Routine Summary */}
+                <View style={styles.routineSummary}>
+                  <Text style={styles.summaryTitle}>Routine steps:</Text>
+                  <View style={styles.stepPillsContainer}>
+                    {routine.steps.map((step: any, index: number) => (
+                      <View key={index} style={styles.stepPill}>
+                        <Text style={styles.stepPillText}>
+                          {index + 1}. {step.title || step.name || step.action || 'Step ' + (index + 1)}
+                        </Text>
+                      </View>
+                    ))}
+                  </View>
                 </View>
               </View>
-
-              {/* Active Days Label */}
-              <Text style={styles.activeDaysLabel}>Active days</Text>
-
-              {/* Day Circles - showing active days */}
-              <View style={styles.dayCircles}>
-                {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((day, index) => {
-                  const activeDays = routine.active_days || [0, 1, 2, 3, 4, 5, 6];
-                  const isActive = activeDays.includes(index);
-                  return (
-                    <TouchableOpacity
-                      key={index}
-                      style={[
-                        styles.dayCircle,
-                        isActive && styles.dayCircleActive
-                      ]}
-                      onPress={() => toggleActiveDay(routine.id, index, routine.active_days)}
-                    >
-                      <Text style={[
-                        styles.dayText,
-                        isActive && styles.dayTextActive
-                      ]}>
-                        {day}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
-
-              {/* Duration and Steps */}
-              <View style={styles.metaRow}>
-                <View style={styles.metaItem}>
-                  <Clock size={16} color={colors.charcoal} />
-                  <Text style={styles.metaText}>{formatDuration(routine.total_duration)}</Text>
-                </View>
-                <View style={styles.metaItem}>
-                  <Text style={styles.metaText}>{routine.steps.length} steps</Text>
-                </View>
-                <View style={styles.metaItem}>
-                  <CheckCircle size={16} color={colors.success} />
-                  <Text style={styles.metaText}>{routine.completion_count}x</Text>
-                </View>
-              </View>
-
-              {/* Routine Summary */}
-              <View style={styles.routineSummary}>
-                <Text style={styles.summaryTitle}>Routine steps:</Text>
-                <View style={styles.stepPillsContainer}>
-                  {routine.steps.map((step: any, index: number) => (
-                    <View key={index} style={styles.stepPill}>
-                      <Text style={styles.stepPillText}>
-                        {index + 1}. {step.title || step.name || step.action || 'Step ' + (index + 1)}
-                      </Text>
-                    </View>
-                  ))}
-                </View>
-              </View>
-            </View>
-          );
+            );
           })
         )}
-        
+
         {/* Add Routine Button at Bottom */}
         {!loading && filteredRoutines.length > 0 && (
           <TouchableOpacity style={styles.addButtonBottom} onPress={showCreateMenu}>

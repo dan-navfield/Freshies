@@ -7,22 +7,40 @@ import { colors, spacing, radii } from '../../src/theme/tokens';
 import { saveScannedProduct } from '../../src/services/storage/scannedProducts';
 import { openChatWithProduct, openChatWithQuestion } from '../../src/utils/chatHelpers';
 import { useChatContextStore } from '../../src/stores/chatContextStore';
-import { useAuth } from '../../contexts/AuthContext';
+import { useAuth } from '../../src/contexts/AuthContext';
 import { getChildren } from '../../src/services/familyService';
 import { ChildProfile } from '../../src/types/family';
 import { supabase } from '../../src/lib/supabase';
 import { getIngredientInfo, getGenericIngredientInfo } from '../../src/data/ingredientDatabase';
 import { getProductReviews, markReviewHelpful, createReview, rateProduct, getProductReviewSummary } from '../../src/services/reviewsService';
+import { addToWishlist, isInWishlist, removeFromWishlist } from '../../src/services/wishlistService';
+import type { WishlistItem } from '../../src/types/wishlist';
 import type { ReviewWithContext, CreateReviewRequest, ProductReviewSummary } from '../../src/types/reviews';
 import ReviewSubmissionModal from '../../src/components/ReviewSubmissionModal';
 import ReviewStatistics from '../../src/components/ReviewStatistics';
 import { clearPromptCache } from '../../src/services/config/promptLoader';
 
+/**
+ * Convert text to sentence case (capitalize first letter of each word)
+ */
+const toSentenceCase = (text: string | string[]): string => {
+  const str = Array.isArray(text) ? text[0] : text;
+  if (!str) return '';
+  return str
+    .toLowerCase()
+    .split(' ')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
+};
+
 export default function ProductResultScreen() {
   const params = useLocalSearchParams();
-  const { barcode, name, brand, category, size, imageUrl, confidence, description, ingredients: ingredientsJSON, scoring: scoringJSON } = params;
+  const { barcode, name, brand, category, size, imageUrl, confidence, description, ingredients: ingredientsJSON, scoring: scoringJSON, sourceType } = params;
   const insets = useSafeAreaInsets();
-  
+
+  // DEBUG: Log received params
+  console.log('🔍 ProductResult received:', { name, brand, size, sourceType, confidence, ingredientsJSON: ingredientsJSON?.toString()?.slice(0, 100) });
+
   const [ingredientsExpanded, setIngredientsExpanded] = useState(false);
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
   const [selectedIngredient, setSelectedIngredient] = useState<any>(null);
@@ -30,6 +48,8 @@ export default function ProductResultScreen() {
   const [children, setChildren] = useState<ChildProfile[]>([]);
   const [addingProduct, setAddingProduct] = useState(false);
   const [isBookmarked, setIsBookmarked] = useState(false);
+  const [wishlistItemId, setWishlistItemId] = useState<string | null>(null);
+  const [addingToWishlist, setAddingToWishlist] = useState(false);
   const [selectedProfile, setSelectedProfile] = useState<'general' | string>('general'); // 'general' or child ID
   const [reviews, setReviews] = useState<ReviewWithContext[]>([]);
   const [reviewSummary, setReviewSummary] = useState<ProductReviewSummary | null>(null);
@@ -38,66 +58,93 @@ export default function ProductResultScreen() {
   const { user } = useAuth();
   const scrollViewRef = useRef<ScrollView>(null);
   const assessmentSectionRef = useRef<View>(null);
-  
+
   // Parse JSON data
-  const ingredients = ingredientsJSON ? JSON.parse(ingredientsJSON as string) : { normalised: [], rawText: '' };
+  const rawIngredients = ingredientsJSON ? JSON.parse(ingredientsJSON as string) : { normalised: [], rawText: '' };
+
+  // Normalize ingredients - handle both string arrays (from AI) and object arrays (from DB)
+  const ingredients = {
+    ...rawIngredients,
+    normalised: rawIngredients.normalised?.map((ing: any) => {
+      // If it's already an object with canonicalName, use it as-is
+      if (typeof ing === 'object' && ing.canonicalName) {
+        return ing;
+      }
+      // If it's a string (from AI identification), convert to ingredient object
+      if (typeof ing === 'string') {
+        return {
+          canonicalName: ing,
+          originalName: ing,
+          safetyRating: 5, // Default to low concern for AI-identified
+          flags: [],
+        };
+      }
+      // Fallback: wrap unknown types
+      return {
+        canonicalName: String(ing),
+        originalName: String(ing),
+        safetyRating: 5,
+        flags: [],
+      };
+    }) || []
+  };
   const scoring = scoringJSON ? JSON.parse(scoringJSON as string) : null;
-  
+
   // Get safety color, icon, and label for six-tier system
   const getSafetyStyle = (rating: string) => {
     switch (rating) {
       case 'SUPER_GENTLE':
-        return { 
+        return {
           color: '#10B981', // Soft green
-          icon: CheckCircle, 
+          icon: CheckCircle,
           bg: '#10B98120',
           label: 'Super Gentle'
         };
       case 'GENTLE':
-        return { 
-          color: colors.mint, 
-          icon: CheckCircle, 
+        return {
+          color: colors.mint,
+          icon: CheckCircle,
           bg: colors.mint + '20',
           label: 'Gentle'
         };
       case 'MILD_CAUTION':
-        return { 
-          color: colors.yellow, 
-          icon: AlertCircle, 
+        return {
+          color: colors.yellow,
+          icon: AlertCircle,
           bg: colors.yellow + '20',
           label: 'Mild Caution'
         };
       case 'CAUTION':
-        return { 
+        return {
           color: '#F59E0B', // Amber
-          icon: AlertCircle, 
+          icon: AlertCircle,
           bg: '#F59E0B20',
           label: 'Caution'
         };
       case 'NOT_IDEAL':
-        return { 
+        return {
           color: '#F97316', // Orange-red
-          icon: XCircle, 
+          icon: XCircle,
           bg: '#F9731620',
           label: 'Not Ideal'
         };
       case 'AVOID':
-        return { 
-          color: colors.red, 
-          icon: XCircle, 
+        return {
+          color: colors.red,
+          icon: XCircle,
           bg: colors.red + '20',
           label: 'Avoid for Child'
         };
       default:
-        return { 
-          color: colors.charcoal, 
-          icon: Info, 
+        return {
+          color: colors.charcoal,
+          icon: Info,
           bg: colors.charcoal + '20',
           label: 'Unknown'
         };
     }
   };
-  
+
   const safetyStyle = scoring ? getSafetyStyle(scoring.rating) : getSafetyStyle('UNKNOWN');
 
   // Load children and save product to history when viewed
@@ -135,7 +182,7 @@ export default function ProductResultScreen() {
 
     const loadReviews = async () => {
       if (!barcode) return;
-      
+
       setLoadingReviews(true);
       try {
         // Load reviews and summary in parallel
@@ -143,7 +190,7 @@ export default function ProductResultScreen() {
           getProductReviews(barcode as string, user?.id),
           getProductReviewSummary(barcode as string),
         ]);
-        
+
         if (!cancelled) {
           setReviews(reviewsData);
           setReviewSummary(summaryData);
@@ -179,14 +226,14 @@ export default function ProductResultScreen() {
       return { color: colors.charcoal, label: 'Check the label', bg: colors.charcoal + '20' };
     }
   };
-  
+
   const confidenceStyle = getConfidenceStyle();
 
   // Handle sharing product
   const handleShare = async () => {
     try {
       const shareMessage = `Check out this product: ${brand} - ${name}\n\nSafety Rating: ${scoring?.riskScore || 'N/A'}/100\n\nScanned with Freshies App`;
-      
+
       // For now, just show an alert. In production, use React Native Share API
       Alert.alert(
         'Share Product',
@@ -195,7 +242,7 @@ export default function ProductResultScreen() {
           { text: 'OK' }
         ]
       );
-      
+
       // TODO: Implement actual sharing with Share API
       // const result = await Share.share({
       //   message: shareMessage,
@@ -207,22 +254,84 @@ export default function ProductResultScreen() {
     }
   };
 
-  // Handle bookmarking product
-  const handleBookmark = () => {
-    setIsBookmarked(!isBookmarked);
-    Alert.alert(
-      isBookmarked ? 'Removed from Saved' : 'Saved!',
-      isBookmarked 
-        ? `${name} has been removed from your saved products.`
-        : `${name} has been saved for later review.`
-    );
-    // TODO: Persist bookmark state to database
+  // Handle adding/removing from wishlist
+  const handleBookmark = async (targetProfileId?: string) => {
+    if (!user?.id) {
+      Alert.alert('Login Required', 'Please log in to save products.');
+      return;
+    }
+
+    // If no target specified and we have children, show selector
+    if (!targetProfileId && children.length > 0 && !isBookmarked) {
+      Alert.alert(
+        'Add to Wishlist',
+        'Who is this wishlist for?',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Myself', onPress: () => handleBookmark(user.id) },
+          ...children.map(child => ({
+            text: child.display_name,
+            onPress: () => handleBookmark(child.id),
+          })),
+        ]
+      );
+      return;
+    }
+
+    const profileId = targetProfileId || user.id;
+    setAddingToWishlist(true);
+    try {
+      if (isBookmarked && wishlistItemId) {
+        // Remove from wishlist
+        await removeFromWishlist(wishlistItemId);
+        setIsBookmarked(false);
+        setWishlistItemId(null);
+        Alert.alert('Removed', `${name} removed from wishlist.`);
+      } else {
+        // Add to wishlist
+        const newItem = await addToWishlist({
+          profile_id: profileId,
+          user_id: user.id,
+          product_barcode: barcode as string,
+          product_name: name as string,
+          product_brand: brand as string,
+          product_image_url: imageUrl as string,
+          product_category: category as string,
+          safety_score: scoring?.riskScore,
+          safety_rating: scoring?.rating,
+        });
+        if (newItem) {
+          setIsBookmarked(true);
+          setWishlistItemId(newItem.id);
+          const childName = children.find(c => c.id === profileId)?.display_name;
+          Alert.alert('Saved! 💜', `${name} added to ${childName || 'your'} wishlist.`);
+        }
+      }
+    } catch (error) {
+      console.error('Error updating wishlist:', error);
+      Alert.alert('Error', 'Failed to update wishlist.');
+    } finally {
+      setAddingToWishlist(false);
+    }
   };
+
+  // Check if product is already in wishlist on load
+  useEffect(() => {
+    const checkWishlist = async () => {
+      if (!user?.id || !barcode) return;
+      const existing = await isInWishlist(user.id, barcode as string);
+      if (existing) {
+        setIsBookmarked(true);
+        setWishlistItemId(existing.id);
+      }
+    };
+    checkWishlist();
+  }, [user?.id, barcode]);
 
   // Handle adding product to child's library
   const handleAddToChild = async (child: ChildProfile) => {
     setAddingProduct(true);
-    
+
     try {
       // Check if product already exists for this child
       const { data: existingProduct, error: checkError } = await supabase
@@ -281,92 +390,138 @@ export default function ProductResultScreen() {
   return (
     <View style={styles.container}>
       <ScrollView ref={scrollViewRef} style={styles.scrollView}>
-        {/* Scan Confirmation Strip */}
-        <View style={[styles.scanConfirmationStrip, { paddingTop: insets.top + spacing[2] }]}>
-          <View style={styles.scanConfirmationContent}>
+        {/* BLACK BANNER - Product Info + Scan Again */}
+        <View style={[styles.blackBanner, { paddingTop: insets.top + spacing[2] }]}>
+          <View style={styles.blackBannerContent}>
             {/* Product Thumbnail */}
             {imageUrl && (
-              <Image 
-                source={{ uri: imageUrl as string }} 
-                style={styles.scanThumbnail} 
+              <Image
+                source={{ uri: imageUrl as string }}
+                style={styles.scanThumbnail}
               />
             )}
-            
+
             {/* Product Info */}
-            <View style={styles.scanProductInfo}>
-              <Text style={styles.scanBrand}>{brand}</Text>
-              <View style={styles.scanNameRow}>
-                <Text style={styles.scanProductName} numberOfLines={1}>{name}</Text>
-                {size && <Text style={styles.scanSize}>{size}</Text>}
-              </View>
-              
-              {/* Confidence Pill */}
-              <View style={[styles.confidencePill, { backgroundColor: confidenceStyle.bg }]}>
-                <Text style={[styles.confidencePillText, { color: confidenceStyle.color }]}>
-                  {confidenceStyle.label}
-                </Text>
-              </View>
+            <View style={styles.blackBannerInfo}>
+              <Text style={styles.blackBannerBrand}>{toSentenceCase(brand as string)}</Text>
+              <Text style={styles.blackBannerName} numberOfLines={1}>{toSentenceCase(name as string)}</Text>
             </View>
+
+            {/* Scan Again Button */}
+            <TouchableOpacity
+              style={styles.scanAgainButton}
+              onPress={() => router.back()}
+            >
+              <Text style={styles.scanAgainButtonText}>Scan again</Text>
+            </TouchableOpacity>
           </View>
-          
-          {/* "Not the right product?" link */}
-          <TouchableOpacity 
-            style={styles.wrongProductLink}
-            onPress={() => {
-              Alert.alert(
-                'Product Incorrect?',
-                'Would you like to scan again or manually enter product details?',
-                [
-                  { text: 'Cancel', style: 'cancel' },
-                  { 
-                    text: 'Scan Again', 
-                    onPress: () => router.back()
-                  },
-                  { 
-                    text: 'Manual Entry', 
-                    onPress: () => {
-                      Alert.alert('Coming Soon', 'Manual product entry is under development.');
-                    }
-                  }
-                ]
-              );
-            }}
-          >
-            <Text style={styles.wrongProductText}>Not the right product?</Text>
-          </TouchableOpacity>
+          <Text style={styles.notRightProductHint}>Not the right product?</Text>
         </View>
+
+        {/* PURPLE BANNER - Add Ingredients (Scenarios 2 & 3 only) */}
+        {(() => {
+          const hasIngredients = ingredients.normalised && ingredients.normalised.length > 0;
+          const isFullDbMatch = sourceType === 'database';
+          const isDbIncomplete = sourceType === 'database_incomplete';
+          const isAiIdentifiedOnly = sourceType === 'ai_identified';
+
+          // Scenario 4: Full DB match with ingredients - NO BANNER
+          if (isFullDbMatch && hasIngredients) return null;
+
+          // Scenario 2: AI identified, not in DB - show "New product" banner
+          if (isAiIdentifiedOnly) {
+            return (
+              <View style={styles.purpleBanner}>
+                <View style={styles.purpleBannerContent}>
+                  <View style={styles.purpleBannerTextSection}>
+                    <Text style={styles.purpleBannerTitle}>New product!</Text>
+                    <Text style={styles.purpleBannerSubtitle}>Help us add it to Freshies</Text>
+                  </View>
+                  <TouchableOpacity
+                    style={styles.addIngredientsButton}
+                    onPress={() => {
+                      router.push({
+                        pathname: '/product-not-found/capture',
+                        params: {
+                          productName: name as string,
+                          productBrand: brand as string,
+                          existingImageUri: imageUrl as string,
+                          mode: 'add_ingredients',
+                        },
+                      });
+                    }}
+                  >
+                    <Text style={styles.addIngredientsButtonText}>📸 Add ingredients</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            );
+          }
+
+          // Scenario 3: DB match but missing ingredients - show "Complete profile" banner
+          if (isDbIncomplete || (isFullDbMatch && !hasIngredients)) {
+            return (
+              <View style={styles.purpleBanner}>
+                <View style={styles.purpleBannerContent}>
+                  <View style={styles.purpleBannerTextSection}>
+                    <Text style={styles.purpleBannerTitle}>Missing ingredients</Text>
+                    <Text style={styles.purpleBannerSubtitle}>Help complete this product</Text>
+                  </View>
+                  <TouchableOpacity
+                    style={styles.addIngredientsButton}
+                    onPress={() => {
+                      router.push({
+                        pathname: '/product-not-found/capture',
+                        params: {
+                          productName: name as string,
+                          productBrand: brand as string,
+                          existingImageUri: imageUrl as string,
+                          mode: 'add_ingredients',
+                        },
+                      });
+                    }}
+                  >
+                    <Text style={styles.addIngredientsButtonText}>📸 Add ingredients</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            );
+          }
+
+          return null;
+        })()}
 
         {/* Hero Section - Large Image with Back Button */}
         <View style={styles.heroSection}>
           <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
             <ChevronLeft color={colors.white} size={28} />
           </TouchableOpacity>
-          
+
           {/* Action Buttons - Top Right */}
           <View style={styles.heroActions}>
             <TouchableOpacity style={styles.heroActionButton} onPress={handleShare}>
               <Share2 size={20} color={colors.white} />
             </TouchableOpacity>
-            <TouchableOpacity 
-              style={styles.heroActionButton} 
-              onPress={() => setIsBookmarked(!isBookmarked)}
+            <TouchableOpacity
+              style={styles.heroActionButton}
+              onPress={() => handleBookmark()}
             >
-              <Bookmark 
-                size={20} 
+              <Bookmark
+                size={20}
                 color={colors.white}
                 fill={isBookmarked ? colors.white : 'none'}
               />
             </TouchableOpacity>
-            <TouchableOpacity 
-              style={styles.heroActionButton} 
+            <TouchableOpacity
+              style={styles.heroActionButton}
               onPress={() => {
                 Alert.alert(
                   'Add to Comparison',
                   'This product will be added to your comparison list',
                   [
                     { text: 'Cancel', style: 'cancel' },
-                    { 
-                      text: 'Add & Compare', 
+                    {
+                      text: 'Add & Compare',
                       onPress: () => {
                         // TODO: Add to comparison storage
                         router.push('/compare');
@@ -379,7 +534,7 @@ export default function ProductResultScreen() {
               <Scale size={20} color={colors.white} />
             </TouchableOpacity>
           </View>
-          
+
           {imageUrl && (
             <View style={styles.heroImageContainer}>
               <Image source={{ uri: imageUrl as string }} style={styles.heroImage} />
@@ -393,9 +548,9 @@ export default function ProductResultScreen() {
                   return colors.riskHigh;
                 };
                 const bgColor = getRiskColor(scoring.riskScore);
-                
+
                 return (
-                  <TouchableOpacity 
+                  <TouchableOpacity
                     style={[styles.heroScoreBadge, { backgroundColor: bgColor }]}
                     onLongPress={() => {
                       Alert.alert(
@@ -408,7 +563,7 @@ export default function ProductResultScreen() {
                             style: 'destructive',
                             onPress: async () => {
                               try {
-                                const { deleteScannedProduct, getScannedProductByBarcode } = await import('../src/services/storage/scannedProducts');
+                                const { deleteScannedProduct, getScannedProductByBarcode } = await import('../../src/services/storage/scannedProducts');
                                 const product = await getScannedProductByBarcode(barcode as string);
                                 if (product) {
                                   await deleteScannedProduct(product.id);
@@ -436,499 +591,289 @@ export default function ProductResultScreen() {
         {/* Product Info Section */}
         <View style={styles.productInfoSection}>
 
-        {/* Product Info Card */}
-        <View style={styles.infoCard}>
-          {/* Brand */}
-          <Text style={styles.brand}>{brand}</Text>
-          
-          {/* Product Name */}
-          <Text style={styles.productName}>{name}</Text>
-          
-          {/* Size/Quantity */}
-          {size && <Text style={styles.productSize}>{size}</Text>}
-          
-          {/* Description/Subtext */}
-          {description && <Text style={styles.productDescription}>{description}</Text>}
-          
-          {/* Category & Confidence Row */}
-          <View style={styles.metaRow}>
-            <View style={styles.categoryBadge}>
-              <Text style={styles.categoryText}>{category}</Text>
-            </View>
-            {confidence && parseFloat(confidence as string) > 0 && (
-              <View style={styles.confidenceBadge}>
-                <Text style={styles.confidenceText}>
-                  {(parseFloat(confidence as string) * 100).toFixed(0)}% match
-                </Text>
-              </View>
-            )}
-          </View>
-        </View>
+          {/* Product Info Card */}
+          <View style={styles.infoCard}>
+            {/* Brand */}
+            <Text style={styles.brand}>{toSentenceCase(brand as string)}</Text>
 
-        {/* Profile Switcher */}
-        {children.length > 0 && (
-          <View style={styles.profileSwitcher}>
-            <ScrollView 
-              horizontal 
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.profileSwitcherContent}
-            >
-              <TouchableOpacity
-                style={[
-                  styles.profileButton,
-                  selectedProfile === 'general' && styles.profileButtonActive
-                ]}
-                onPress={() => setSelectedProfile('general')}
+            {/* Product Name */}
+            <Text style={styles.productName}>{toSentenceCase(name as string)}</Text>
+
+            {/* Size/Quantity */}
+            {size && <Text style={styles.productSize}>{size}</Text>}
+
+            {/* Description/Subtext */}
+            {description && <Text style={styles.productDescription}>{description}</Text>}
+
+            {/* Category & Confidence Row */}
+            <View style={styles.metaRow}>
+              {/* Only show category if it's in English (no language prefix like fr:, de:, etc.) */}
+              {category && !String(category).includes(':') && (
+                <View style={styles.categoryBadge}>
+                  <Text style={styles.categoryText}>{toSentenceCase(category as string)}</Text>
+                </View>
+              )}
+              {confidence && parseFloat(confidence as string) > 0 && (
+                <View style={styles.confidenceBadge}>
+                  <Text style={styles.confidenceText}>
+                    {(parseFloat(confidence as string) * 100).toFixed(0)}% match
+                  </Text>
+                </View>
+              )}
+            </View>
+          </View>
+
+          {/* Profile Switcher */}
+          {children.length > 0 && (
+            <View style={styles.profileSwitcher}>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.profileSwitcherContent}
               >
-                <Text style={[
-                  styles.profileButtonText,
-                  selectedProfile === 'general' && styles.profileButtonTextActive
-                ]}>
-                  General
-                </Text>
-              </TouchableOpacity>
-              
-              {children.map((child) => (
                 <TouchableOpacity
-                  key={child.id}
                   style={[
                     styles.profileButton,
-                    selectedProfile === child.id && styles.profileButtonActive
+                    selectedProfile === 'general' && styles.profileButtonActive
                   ]}
-                  onPress={() => setSelectedProfile(child.id)}
+                  onPress={() => setSelectedProfile('general')}
                 >
                   <Text style={[
                     styles.profileButtonText,
-                    selectedProfile === child.id && styles.profileButtonTextActive
+                    selectedProfile === 'general' && styles.profileButtonTextActive
                   ]}>
-                    {child.first_name}
+                    General
                   </Text>
                 </TouchableOpacity>
-              ))}
-            </ScrollView>
-          </View>
-        )}
 
-        {/* General Rating Badge */}
-        {scoring && (() => {
-          // Get background color based on risk score (inverted - lower is better)
-          const getRiskColor = (score: number) => {
-            if (score <= 10) return colors.riskVeryLow;      // Green - Very safe
-            if (score <= 25) return colors.riskLow;          // Lime - Safe
-            if (score <= 40) return colors.riskMedLow;       // Yellow - Mostly safe
-            if (score <= 60) return colors.riskMedium;       // Amber - Caution
-            if (score <= 75) return colors.riskMedHigh;      // Orange - Concern
-            return colors.riskHigh;                          // Red - High concern
-          };
-          
-          const bgColor = getRiskColor(scoring.riskScore);
-          const textColor = scoring.riskScore <= 40 ? colors.black : colors.white;
-          
-          return (
-            <View style={[styles.generalRatingBadge, { backgroundColor: bgColor }]}>
-              <View style={styles.ratingContent}>
-                <View style={styles.ratingTopRow}>
-                  <Text style={[styles.ratingLabel, { color: textColor, opacity: 0.8 }]}>SAFETY RATING</Text>
-                  <View style={[styles.ratingScorePill, { backgroundColor: textColor === colors.black ? 'rgba(0,0,0,0.1)' : 'rgba(255,255,255,0.2)' }]}>
-                    <Text style={[styles.ratingScorePillText, { color: textColor }]}>{scoring.riskScore}/100</Text>
+                {children.map((child) => (
+                  <TouchableOpacity
+                    key={child.id}
+                    style={[
+                      styles.profileButton,
+                      selectedProfile === child.id && styles.profileButtonActive
+                    ]}
+                    onPress={() => setSelectedProfile(child.id)}
+                  >
+                    <Text style={[
+                      styles.profileButtonText,
+                      selectedProfile === child.id && styles.profileButtonTextActive
+                    ]}>
+                      {child.first_name}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </View>
+          )}
+
+          {/* General Rating Badge */}
+          {scoring && (() => {
+            // Get background color based on risk score (inverted - lower is better)
+            const getRiskColor = (score: number) => {
+              if (score <= 10) return colors.riskVeryLow;      // Green - Very safe
+              if (score <= 25) return colors.riskLow;          // Lime - Safe
+              if (score <= 40) return colors.riskMedLow;       // Yellow - Mostly safe
+              if (score <= 60) return colors.riskMedium;       // Amber - Caution
+              if (score <= 75) return colors.riskMedHigh;      // Orange - Concern
+              return colors.riskHigh;                          // Red - High concern
+            };
+
+            const bgColor = getRiskColor(scoring.riskScore);
+            const textColor = scoring.riskScore <= 40 ? colors.black : colors.white;
+
+            return (
+              <View style={[styles.generalRatingBadge, { backgroundColor: bgColor }]}>
+                <View style={styles.ratingContent}>
+                  <View style={styles.ratingTopRow}>
+                    <Text style={[styles.ratingLabel, { color: textColor, opacity: 0.8 }]}>SAFETY RATING</Text>
+                    <View style={[styles.ratingScorePill, { backgroundColor: textColor === colors.black ? 'rgba(0,0,0,0.1)' : 'rgba(255,255,255,0.2)' }]}>
+                      <Text style={[styles.ratingScorePillText, { color: textColor }]}>{scoring.riskScore}/100</Text>
+                    </View>
                   </View>
-                </View>
-                
-                <Text style={[styles.ratingTierName, { color: textColor }]}>
-                  {safetyStyle.label}
-                </Text>
-                
-                <Text style={[styles.ratingSupportingText, { color: textColor, opacity: 0.9 }]}>
-                  {scoring.riskScore <= 10 && 'Very safe formula with simple, gentle ingredients'}
-                  {scoring.riskScore > 10 && scoring.riskScore <= 25 && 'Suitable for most kids with minimal concerns'}
-                  {scoring.riskScore > 25 && scoring.riskScore <= 40 && 'Mostly fine with one or two mild concerns'}
-                  {scoring.riskScore > 40 && scoring.riskScore <= 60 && 'Clear concerns depending on child and usage'}
-                  {scoring.riskScore > 60 && scoring.riskScore <= 75 && 'Better alternatives exist for sensitive skin'}
-                  {scoring.riskScore > 75 && 'Contains strong irritants or high-risk ingredients'}
-                </Text>
-              </View>
-            </View>
-          );
-        })()}
 
-        {/* Child Chips - Only show when a child is selected */}
-        {selectedProfile !== 'general' && (() => {
-          const selectedChild = children.find(c => c.id === selectedProfile);
-          if (!selectedChild) return null;
-          
-          return (
-            <View style={styles.childChipsContainer}>
-              {/* Age chip */}
-              <View style={[styles.childChip, { backgroundColor: colors.mint + '20', borderColor: colors.mint }]}>
-                <Text style={[styles.childChipText, { color: colors.mint }]}>
-                  Fine for age {selectedChild.age}
-                </Text>
-              </View>
-              
-              {/* Skin type chip */}
-              {(selectedChild as any).skin_type && (
-                <View style={[styles.childChip, { backgroundColor: colors.purple + '15', borderColor: colors.purple }]}>
-                  <Text style={[styles.childChipText, { color: colors.purple }]}>
-                    {(selectedChild as any).skin_type === 'sensitive' ? 'Sensitive skin' : 
-                     (selectedChild as any).skin_type === 'dry' ? 'Dry skin' :
-                     (selectedChild as any).skin_type === 'oily' ? 'Oily skin' : 'Normal skin'}
+                  <Text style={[styles.ratingTierName, { color: textColor }]}>
+                    {safetyStyle.label}
                   </Text>
-                </View>
-              )}
-              
-              {/* Allergy warnings */}
-              {(selectedChild as any).allergies && (selectedChild as any).allergies.length > 0 && (
-                <View style={[styles.childChip, { backgroundColor: colors.red + '15', borderColor: colors.red }]}>
-                  <AlertCircle size={14} color={colors.red} />
-                  <Text style={[styles.childChipText, { color: colors.red, marginLeft: 4 }]}>
-                    Check allergies
-                  </Text>
-                </View>
-              )}
-            </View>
-          );
-        })()}
 
-        {/* Child Summary Panel - Only show when a child is selected */}
-        {selectedProfile !== 'general' && (() => {
-          const selectedChild = children.find(c => c.id === selectedProfile);
-          if (!selectedChild) return null;
-          
-          return (
-            <View style={styles.childSummaryPanel}>
-              <Text style={styles.childSummaryTitle}>
-                How this looks for {selectedChild.first_name}
-              </Text>
-              
-              <Text style={styles.childSummaryText}>
-                Based on {selectedChild.first_name}'s profile, here's what you should know about this product.
-              </Text>
-              
-              <View style={styles.childSummaryPoints}>
-                {/* Age consideration with product-specific guidance */}
-                <View style={styles.summaryPoint}>
-                  <Text style={styles.summaryBullet}>•</Text>
-                  <Text style={styles.summaryPointText}>
-                    <Text style={{ fontWeight: '600' }}>Age {selectedChild.age}:</Text> {
-                      (() => {
-                        const riskScore = scoring?.riskScore || 0;
-                        const age = selectedChild.age;
-                        
-                        // Under 3 - very cautious
-                        if (age < 3) {
-                          if (riskScore > 40) return 'Not recommended - this product has ingredients that may be too harsh for toddler skin. Look for products specifically labeled for babies/toddlers.';
-                          if (riskScore > 20) return 'Use with caution - test on a small area first and watch for any redness or irritation.';
-                          return 'Should be fine, but always do a patch test first with very young children.';
-                        }
-                        
-                        // Ages 3-7 - gentle needed
-                        if (age < 8) {
-                          if (riskScore > 60) return 'Not ideal for this age - contains ingredients that could irritate young skin. Consider gentler alternatives.';
-                          if (riskScore > 40) return 'Some concerns - watch for fragrances and strong surfactants which can dry out young skin.';
-                          if (riskScore > 20) return 'Generally okay, but monitor for any signs of dryness or irritation after use.';
-                          return 'Good choice for this age - gentle formula suitable for young skin.';
-                        }
-                        
-                        // Ages 8-12 - more tolerant but still developing
-                        if (age < 13) {
-                          if (riskScore > 70) return 'Not recommended - this product has strong ingredients. At this age, skin is still developing and needs gentler care.';
-                          if (riskScore > 50) return 'Some ingredients may be too strong. If using, start with less frequent application and watch for reactions.';
-                          if (riskScore > 30) return 'Should be fine with normal use, but avoid if skin becomes irritated or dry.';
-                          return 'Suitable for this age - skin can handle this formula well.';
-                        }
-                        
-                        // Teens 13+ - can handle more but still need guidance
-                        if (riskScore > 75) return 'Not ideal even for teen skin - contains harsh ingredients that could cause irritation or disrupt skin barrier.';
-                        if (riskScore > 50) return 'Use carefully - teen skin can be sensitive due to hormonal changes. Start slow and monitor results.';
-                        if (riskScore > 30) return 'Should work well, but watch for any breakouts or irritation, especially if skin is going through changes.';
-                        return 'Good match for teen skin - formula should work well at this age.';
-                      })()
-                    }
+                  <Text style={[styles.ratingSupportingText, { color: textColor, opacity: 0.9 }]}>
+                    {scoring.riskScore <= 10 && 'Very safe formula with simple, gentle ingredients'}
+                    {scoring.riskScore > 10 && scoring.riskScore <= 25 && 'Suitable for most kids with minimal concerns'}
+                    {scoring.riskScore > 25 && scoring.riskScore <= 40 && 'Mostly fine with one or two mild concerns'}
+                    {scoring.riskScore > 40 && scoring.riskScore <= 60 && 'Clear concerns depending on child and usage'}
+                    {scoring.riskScore > 60 && scoring.riskScore <= 75 && 'Better alternatives exist for sensitive skin'}
+                    {scoring.riskScore > 75 && 'Contains strong irritants or high-risk ingredients'}
                   </Text>
                 </View>
-                
-                {/* Skin type consideration */}
+              </View>
+            );
+          })()}
+
+          {/* Child Chips - Only show when a child is selected */}
+          {selectedProfile !== 'general' && (() => {
+            const selectedChild = children.find(c => c.id === selectedProfile);
+            if (!selectedChild) return null;
+
+            return (
+              <View style={styles.childChipsContainer}>
+                {/* Age chip */}
+                <View style={[styles.childChip, { backgroundColor: colors.mint + '20', borderColor: colors.mint }]}>
+                  <Text style={[styles.childChipText, { color: colors.mint }]}>
+                    Fine for age {selectedChild.age}
+                  </Text>
+                </View>
+
+                {/* Skin type chip */}
                 {(selectedChild as any).skin_type && (
+                  <View style={[styles.childChip, { backgroundColor: colors.purple + '15', borderColor: colors.purple }]}>
+                    <Text style={[styles.childChipText, { color: colors.purple }]}>
+                      {(selectedChild as any).skin_type === 'sensitive' ? 'Sensitive skin' :
+                        (selectedChild as any).skin_type === 'dry' ? 'Dry skin' :
+                          (selectedChild as any).skin_type === 'oily' ? 'Oily skin' : 'Normal skin'}
+                    </Text>
+                  </View>
+                )}
+
+                {/* Allergy warnings */}
+                {(selectedChild as any).allergies && (selectedChild as any).allergies.length > 0 && (
+                  <View style={[styles.childChip, { backgroundColor: colors.red + '15', borderColor: colors.red }]}>
+                    <AlertCircle size={14} color={colors.red} />
+                    <Text style={[styles.childChipText, { color: colors.red, marginLeft: 4 }]}>
+                      Check allergies
+                    </Text>
+                  </View>
+                )}
+              </View>
+            );
+          })()}
+
+          {/* Child Summary Panel - Only show when a child is selected */}
+          {selectedProfile !== 'general' && (() => {
+            const selectedChild = children.find(c => c.id === selectedProfile);
+            if (!selectedChild) return null;
+
+            return (
+              <View style={styles.childSummaryPanel}>
+                <Text style={styles.childSummaryTitle}>
+                  How this looks for {selectedChild.first_name}
+                </Text>
+
+                <Text style={styles.childSummaryText}>
+                  Based on {selectedChild.first_name}'s profile, here's what you should know about this product.
+                </Text>
+
+                <View style={styles.childSummaryPoints}>
+                  {/* Age consideration with product-specific guidance */}
                   <View style={styles.summaryPoint}>
                     <Text style={styles.summaryBullet}>•</Text>
                     <Text style={styles.summaryPointText}>
-                      <Text style={{ fontWeight: '600' }}>{(selectedChild as any).skin_type === 'sensitive' ? 'Sensitive' : (selectedChild as any).skin_type} skin:</Text> {
-                        (selectedChild as any).skin_type === 'sensitive' ? 'Avoid fragrances and strong surfactants' :
-                        (selectedChild as any).skin_type === 'dry' ? 'Look for moisturizing ingredients' :
-                        (selectedChild as any).skin_type === 'oily' ? 'Lightweight, non-comedogenic formulas work best' :
-                        'Most products should work well'
+                      <Text style={{ fontWeight: '600' }}>Age {selectedChild.age}:</Text> {
+                        (() => {
+                          const riskScore = scoring?.riskScore || 0;
+                          const age = selectedChild.age;
+
+                          // Under 3 - very cautious
+                          if (age < 3) {
+                            if (riskScore > 40) return 'Not recommended - this product has ingredients that may be too harsh for toddler skin. Look for products specifically labeled for babies/toddlers.';
+                            if (riskScore > 20) return 'Use with caution - test on a small area first and watch for any redness or irritation.';
+                            return 'Should be fine, but always do a patch test first with very young children.';
+                          }
+
+                          // Ages 3-7 - gentle needed
+                          if (age < 8) {
+                            if (riskScore > 60) return 'Not ideal for this age - contains ingredients that could irritate young skin. Consider gentler alternatives.';
+                            if (riskScore > 40) return 'Some concerns - watch for fragrances and strong surfactants which can dry out young skin.';
+                            if (riskScore > 20) return 'Generally okay, but monitor for any signs of dryness or irritation after use.';
+                            return 'Good choice for this age - gentle formula suitable for young skin.';
+                          }
+
+                          // Ages 8-12 - more tolerant but still developing
+                          if (age < 13) {
+                            if (riskScore > 70) return 'Not recommended - this product has strong ingredients. At this age, skin is still developing and needs gentler care.';
+                            if (riskScore > 50) return 'Some ingredients may be too strong. If using, start with less frequent application and watch for reactions.';
+                            if (riskScore > 30) return 'Should be fine with normal use, but avoid if skin becomes irritated or dry.';
+                            return 'Suitable for this age - skin can handle this formula well.';
+                          }
+
+                          // Teens 13+ - can handle more but still need guidance
+                          if (riskScore > 75) return 'Not ideal even for teen skin - contains harsh ingredients that could cause irritation or disrupt skin barrier.';
+                          if (riskScore > 50) return 'Use carefully - teen skin can be sensitive due to hormonal changes. Start slow and monitor results.';
+                          if (riskScore > 30) return 'Should work well, but watch for any breakouts or irritation, especially if skin is going through changes.';
+                          return 'Good match for teen skin - formula should work well at this age.';
+                        })()
                       }
                     </Text>
                   </View>
-                )}
-                
-                {/* Allergy consideration */}
-                {(selectedChild as any).allergies && (selectedChild as any).allergies.length > 0 && (
+
+                  {/* Skin type consideration */}
+                  {(selectedChild as any).skin_type && (
+                    <View style={styles.summaryPoint}>
+                      <Text style={styles.summaryBullet}>•</Text>
+                      <Text style={styles.summaryPointText}>
+                        <Text style={{ fontWeight: '600' }}>{(selectedChild as any).skin_type === 'sensitive' ? 'Sensitive' : (selectedChild as any).skin_type} skin:</Text> {
+                          (selectedChild as any).skin_type === 'sensitive' ? 'Avoid fragrances and strong surfactants' :
+                            (selectedChild as any).skin_type === 'dry' ? 'Look for moisturizing ingredients' :
+                              (selectedChild as any).skin_type === 'oily' ? 'Lightweight, non-comedogenic formulas work best' :
+                                'Most products should work well'
+                        }
+                      </Text>
+                    </View>
+                  )}
+
+                  {/* Allergy consideration */}
+                  {(selectedChild as any).allergies && (selectedChild as any).allergies.length > 0 && (
+                    <View style={styles.summaryPoint}>
+                      <Text style={styles.summaryBullet}>•</Text>
+                      <Text style={styles.summaryPointText}>
+                        <Text style={{ fontWeight: '600' }}>Allergies:</Text> Check ingredients carefully for {(selectedChild as any).allergies.join(', ')}
+                      </Text>
+                    </View>
+                  )}
+
+                  {/* Product type consideration */}
                   <View style={styles.summaryPoint}>
                     <Text style={styles.summaryBullet}>•</Text>
                     <Text style={styles.summaryPointText}>
-                      <Text style={{ fontWeight: '600' }}>Allergies:</Text> Check ingredients carefully for {(selectedChild as any).allergies.join(', ')}
+                      <Text style={{ fontWeight: '600' }}>Product type:</Text> {
+                        (typeof category === 'string' && category.toLowerCase().includes('sunscreen')) ? 'Sunscreen - reapply every 2 hours' :
+                          (typeof category === 'string' && category.toLowerCase().includes('cleanser')) ? 'Cleanser - rinse thoroughly' :
+                            (typeof category === 'string' && category.toLowerCase().includes('moisturizer')) ? 'Moisturizer - apply to damp skin' :
+                              'Follow product instructions for best results'
+                      }
                     </Text>
                   </View>
-                )}
-                
-                {/* Product type consideration */}
-                <View style={styles.summaryPoint}>
-                  <Text style={styles.summaryBullet}>•</Text>
-                  <Text style={styles.summaryPointText}>
-                    <Text style={{ fontWeight: '600' }}>Product type:</Text> {
-                      (typeof category === 'string' && category.toLowerCase().includes('sunscreen')) ? 'Sunscreen - reapply every 2 hours' :
-                      (typeof category === 'string' && category.toLowerCase().includes('cleanser')) ? 'Cleanser - rinse thoroughly' :
-                      (typeof category === 'string' && category.toLowerCase().includes('moisturizer')) ? 'Moisturizer - apply to damp skin' :
-                      'Follow product instructions for best results'
-                    }
-                  </Text>
                 </View>
               </View>
-            </View>
-          );
-        })()}
+            );
+          })()}
 
-        {/* Unknown/Incomplete Data Banner */}
-        {(() => {
-          // Show banner if confidence is low or ingredients are unclear
-          const conf = parseFloat(confidence as string) || 0;
-          const hasIncompleteData = conf < 0.5 || !ingredients.normalised || ingredients.normalised.length === 0;
-          
-          if (!hasIncompleteData) return null;
-          
-          return (
-            <View style={styles.incompleteBanner}>
-              <Info size={18} color={colors.charcoal} style={{ opacity: 0.7 }} />
-              <Text style={styles.incompleteBannerText}>
-                Some ingredients were unclear or not matched. We've been cautious in our assessment where data is incomplete.
-              </Text>
-            </View>
-          );
-        })()}
 
-        {/* Key Reasons Panel */}
-        {scoring && scoring.reasons && scoring.reasons.length > 0 && (
-          <View style={styles.keyReasonsPanel}>
-            <Text style={styles.keyReasonsTitle}>Why we rated it this way</Text>
-            
-            {scoring.reasons.slice(0, 4).map((reason: any, index: number) => {
-              const IconComponent = reason.severity === 'HIGH' ? AlertCircle : 
-                                   reason.severity === 'MEDIUM' ? Info : 
-                                   CheckCircle;
-              const iconColor = reason.severity === 'HIGH' ? colors.riskHigh : 
-                               reason.severity === 'MEDIUM' ? colors.riskMedium : 
-                               colors.mint;
-              
-              return (
-                <View key={index} style={styles.reasonItem}>
-                  <View style={[styles.reasonIconCircle, { backgroundColor: iconColor + '30' }]}>
-                    <IconComponent color={colors.white} size={22} />
-                  </View>
-                  
-                  <View style={styles.reasonTextContainer}>
-                    <Text style={styles.reasonHeading}>
-                      {reason.ingredient || reason.code.replace(/_/g, ' ')}
-                    </Text>
-                    <Text style={styles.reasonExplanation}>
-                      {reason.detail}
-                    </Text>
-                  </View>
-                </View>
-              );
-            })}
-          </View>
-        )}
+          {/* Key Reasons Panel */}
+          {scoring && scoring.reasons && scoring.reasons.length > 0 && (
+            <View style={styles.keyReasonsPanel}>
+              <Text style={styles.keyReasonsTitle}>Why we rated it this way</Text>
 
-        {/* Ingredients Summary + List */}
-        {ingredients.normalised && ingredients.normalised.length > 0 && (
-          <View style={styles.ingredientsSection}>
-            <TouchableOpacity 
-              style={styles.ingredientsSummaryHeader}
-              onPress={() => setIngredientsExpanded(!ingredientsExpanded)}
-            >
-              <View style={styles.ingredientsSummaryContent}>
-                <Text style={styles.ingredientsHeaderTitle}>
-                  Ingredients ({ingredients.normalised.length})
-                </Text>
-                <Text style={styles.ingredientsSummaryText}>
-                  {ingredients.normalised.filter((ing: any) => ing.safetyRating <= 10).length} low concern • {' '}
-                  {ingredients.normalised.filter((ing: any) => ing.safetyRating > 10 && ing.safetyRating <= 30).length} mild • {' '}
-                  {ingredients.normalised.filter((ing: any) => ing.safetyRating > 30 && ing.safetyRating <= 60).length} medium • {' '}
-                  {ingredients.normalised.filter((ing: any) => ing.safetyRating > 60).length} high concern
-                </Text>
-              </View>
-              {ingredientsExpanded ? (
-                <ChevronUp size={24} color={colors.white} />
-              ) : (
-                <ChevronDown size={24} color={colors.white} />
-              )}
-            </TouchableOpacity>
-
-            {/* Grouped Ingredients List */}
-            {ingredientsExpanded && (() => {
-              // Helper functions
-              const getConcernStyle = (rating: number) => {
-                if (rating <= 10) return { color: colors.mint, label: 'Low', bg: colors.mint + '15' };
-                if (rating <= 30) return { color: colors.yellow, label: 'Mild', bg: colors.yellow + '15' };
-                if (rating <= 60) return { color: '#F59E0B', label: 'Medium', bg: '#F59E0B15' };
-                return { color: colors.red, label: 'High', bg: colors.red + '15' };
-              };
-              
-              const getRole = (flags: string[]) => {
-                if (!flags || flags.length === 0) return 'Ingredient';
-                if (flags.includes('FRAGRANCE')) return 'Fragrance';
-                if (flags.includes('SULFATE_SURFACTANT') || flags.includes('STRONG_SURFACTANT')) return 'Foaming cleanser';
-                if (flags.includes('PARABEN')) return 'Preservative';
-                return 'Ingredient';
-              };
-              
-              // Group ingredients by concern level
-              const lowConcern = ingredients.normalised.filter((ing: any) => (ing.safetyRating || 0) <= 10);
-              const mildConcern = ingredients.normalised.filter((ing: any) => (ing.safetyRating || 0) > 10 && (ing.safetyRating || 0) <= 30);
-              const mediumConcern = ingredients.normalised.filter((ing: any) => (ing.safetyRating || 0) > 30 && (ing.safetyRating || 0) <= 60);
-              const highConcern = ingredients.normalised.filter((ing: any) => (ing.safetyRating || 0) > 60);
-              
-              const toggleGroup = (groupTitle: string) => {
-                const newExpanded = new Set(expandedGroups);
-                if (newExpanded.has(groupTitle)) {
-                  newExpanded.delete(groupTitle);
-                } else {
-                  newExpanded.add(groupTitle);
-                }
-                setExpandedGroups(newExpanded);
-              };
-              
-              const renderIngredientGroup = (title: string, items: any[], concernStyle: any) => {
-                if (items.length === 0) return null;
-                const isExpanded = expandedGroups.has(title);
-                
-                return (
-                  <View key={title} style={styles.ingredientGroup}>
-                    <TouchableOpacity 
-                      style={[styles.ingredientGroupHeader, { backgroundColor: concernStyle.bg }]}
-                      onPress={() => toggleGroup(title)}
-                    >
-                      <View style={styles.ingredientGroupHeaderLeft}>
-                        <View style={[styles.groupDot, { backgroundColor: concernStyle.color }]} />
-                        <Text style={styles.ingredientGroupTitle}>{title} ({items.length})</Text>
-                      </View>
-                      {isExpanded ? (
-                        <ChevronUp size={20} color={concernStyle.color} />
-                      ) : (
-                        <ChevronDown size={20} color={concernStyle.color} />
-                      )}
-                    </TouchableOpacity>
-                    {isExpanded && items.map((ing: any, index: number) => (
-                      <TouchableOpacity 
-                        key={index} 
-                        style={styles.ingredientRow}
-                        onPress={() => setSelectedIngredient(ing)}
-                      >
-                        <View style={styles.ingredientInfo}>
-                          <Text style={styles.ingredientNameText}>{ing.canonicalName}</Text>
-                          <Text style={styles.ingredientRole}>{getRole(ing.flags)}</Text>
-                        </View>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                );
-              };
-              
-              return (
-                <View style={styles.ingredientsList}>
-                  {renderIngredientGroup('Low Concern', lowConcern, getConcernStyle(5))}
-                  {renderIngredientGroup('Mild Concern', mildConcern, getConcernStyle(20))}
-                  {renderIngredientGroup('Medium Concern', mediumConcern, getConcernStyle(45))}
-                  {renderIngredientGroup('High Concern', highConcern, getConcernStyle(80))}
-                </View>
-              );
-            })()}
-          </View>
-        )}
-
-        {/* User Reviews Section */}
-        <View style={styles.reviewsSection}>
-          <Text style={styles.reviewsSectionTitle}>What other parents say</Text>
-          <Text style={styles.reviewsSectionSubtitle}>Shared anonymously by Freshies parents</Text>
-          
-          {/* Review Statistics */}
-          {reviewSummary && reviewSummary.total_reviews > 0 && (
-            <ReviewStatistics summary={reviewSummary} />
-          )}
-          
-          {loadingReviews ? (
-            <View style={styles.reviewsLoading}>
-              <ActivityIndicator size="small" color={colors.purple} />
-              <Text style={styles.reviewsLoadingText}>Loading reviews...</Text>
-            </View>
-          ) : reviews.length === 0 ? (
-            <View style={styles.reviewsEmpty}>
-              <Text style={styles.reviewsEmptyText}>
-                No reviews yet. Be the first to share your experience!
-              </Text>
-            </View>
-          ) : (
-            <View style={styles.reviewsList}>
-              {reviews.map(review => {
-                const experienceLabels = {
-                  worked_well: '✅ Worked well',
-                  somewhat: '😐 Somewhat',
-                  no_irritation: '❌ No / Irritation',
-                };
-
-                const contextParts = [];
-                if (review.child_age) contextParts.push(`Age ${review.child_age}`);
-                if (review.child_skin_type) contextParts.push(`${review.child_skin_type} skin`);
-                if (review.child_allergies && review.child_allergies.length > 0) {
-                  contextParts.push(`Allergies: ${review.child_allergies.join(', ')}`);
-                }
-                const context = contextParts.length > 0 ? contextParts.join(' • ') : 'Parent';
+              {scoring.reasons.slice(0, 4).map((reason: any, index: number) => {
+                const IconComponent = reason.severity === 'HIGH' ? AlertCircle :
+                  reason.severity === 'MEDIUM' ? Info :
+                    CheckCircle;
+                const iconColor = reason.severity === 'HIGH' ? colors.riskHigh :
+                  reason.severity === 'MEDIUM' ? colors.riskMedium :
+                    colors.mint;
 
                 return (
-                  <View key={review.id} style={styles.reviewCard}>
-                    <View style={styles.reviewExperienceBadge}>
-                      <Text style={styles.reviewExperienceText}>
-                        {experienceLabels[review.experience_rating]}
-                      </Text>
+                  <View key={index} style={styles.reasonItem}>
+                    <View style={[styles.reasonIconCircle, { backgroundColor: iconColor + '30' }]}>
+                      <IconComponent color={colors.white} size={22} />
                     </View>
-                    
-                    {review.review_text && (
-                      <Text style={styles.reviewText}>"{review.review_text}"</Text>
-                    )}
-                    
-                    <View style={styles.reviewMeta}>
-                      <Text style={styles.reviewContext}>{context}</Text>
-                      <View style={styles.reviewHelpfulActions}>
-                        <TouchableOpacity
-                          style={styles.reviewHelpfulButton}
-                          onPress={async () => {
-                            if (!user) {
-                              Alert.alert('Sign in required', 'Please sign in to mark reviews as helpful');
-                              return;
-                            }
-                            try {
-                              await markReviewHelpful(review.id, user.id, true);
-                              // Reload reviews and summary
-                              const [updatedReviews, updatedSummary] = await Promise.all([
-                                getProductReviews(barcode as string, user.id),
-                                getProductReviewSummary(barcode as string),
-                              ]);
-                              setReviews(updatedReviews);
-                              setReviewSummary(updatedSummary);
-                            } catch (error) {
-                              console.error('Error marking helpful:', error);
-                            }
-                          }}
-                        >
-                          <ThumbsUp 
-                            size={16} 
-                            color={review.user_helpfulness_vote === true ? colors.purple : colors.charcoal} 
-                            fill={review.user_helpfulness_vote === true ? colors.purple : 'none'}
-                          />
-                          <Text style={styles.reviewHelpfulCount}>{review.helpful_count}</Text>
-                        </TouchableOpacity>
-                      </View>
+
+                    <View style={styles.reasonTextContainer}>
+                      <Text style={styles.reasonHeading}>
+                        {reason.ingredient || reason.code.replace(/_/g, ' ')}
+                      </Text>
+                      <Text style={styles.reasonExplanation}>
+                        {reason.detail}
+                      </Text>
                     </View>
                   </View>
                 );
@@ -936,173 +881,402 @@ export default function ProductResultScreen() {
             </View>
           )}
 
-          {/* Share Your Experience Button */}
-          <TouchableOpacity 
-            style={styles.shareExperienceButton}
-            onPress={() => setShowReviewModal(true)}
-          >
-            <Text style={styles.shareExperienceButtonText}>Share your experience</Text>
-          </TouchableOpacity>
-        </View>
+          {/* Ingredients Summary + List */}
+          <View style={styles.ingredientsSection}>
+            {ingredients.normalised && ingredients.normalised.length > 0 ? (
+              <>
+                <TouchableOpacity
+                  style={styles.ingredientsSummaryHeader}
+                  onPress={() => setIngredientsExpanded(!ingredientsExpanded)}
+                >
+                  <View style={styles.ingredientsSummaryContent}>
+                    <Text style={styles.ingredientsHeaderTitle}>
+                      Ingredients ({ingredients.normalised.length})
+                    </Text>
+                    <Text style={styles.ingredientsSummaryText}>
+                      {ingredients.normalised.filter((ing: any) => ing.safetyRating <= 10).length} low concern • {' '}
+                      {ingredients.normalised.filter((ing: any) => ing.safetyRating > 10 && ing.safetyRating <= 30).length} mild • {' '}
+                      {ingredients.normalised.filter((ing: any) => ing.safetyRating > 30 && ing.safetyRating <= 60).length} medium • {' '}
+                      {ingredients.normalised.filter((ing: any) => ing.safetyRating > 60).length} high concern
+                    </Text>
+                  </View>
+                  {ingredientsExpanded ? (
+                    <ChevronUp size={24} color={colors.white} />
+                  ) : (
+                    <ChevronDown size={24} color={colors.white} />
+                  )}
+                </TouchableOpacity>
 
-        {/* Review Submission Modal */}
-        <ReviewSubmissionModal
-          visible={showReviewModal}
-          onClose={() => setShowReviewModal(false)}
-          onSubmit={async (reviewData: CreateReviewRequest, rating?: number) => {
-            if (!user) return;
-            
-            // Submit review
-            await createReview(reviewData, user.id);
-            
-            // Submit rating if provided
-            if (rating && rating > 0) {
-              await rateProduct({
-                product_barcode: barcode as string,
-                rating,
-                child_id: reviewData.child_id,
-              }, user.id);
-            }
-            
-            // Reload reviews and summary
-            const [updatedReviews, updatedSummary] = await Promise.all([
-              getProductReviews(barcode as string, user.id),
-              getProductReviewSummary(barcode as string),
-            ]);
-            setReviews(updatedReviews);
-            setReviewSummary(updatedSummary);
-          }}
-          productBarcode={barcode as string}
-          productName={name as string}
-          productBrand={brand as string}
-          children={children}
-        />
+                {/* Grouped Ingredients List */}
+                {ingredientsExpanded && (() => {
+                  // Helper functions
+                  const getConcernStyle = (rating: number) => {
+                    if (rating <= 10) return { color: colors.mint, label: 'Low', bg: colors.mint + '15' };
+                    if (rating <= 30) return { color: colors.yellow, label: 'Mild', bg: colors.yellow + '15' };
+                    if (rating <= 60) return { color: '#F59E0B', label: 'Medium', bg: '#F59E0B15' };
+                    return { color: colors.red, label: 'High', bg: colors.red + '15' };
+                  };
 
-        {/* Ask FreshiesAI */}
-        <TouchableOpacity 
-          style={styles.aiCard}
-          onPress={() => {
-            // Set product context first
-            useChatContextStore.getState().setLastScannedProduct({
-              name: name as string,
-              brand: brand as string,
-              category: category as string,
-              ingredients_raw: ingredients.rawText || '',
-              barcode: barcode as string,
-              image_url: imageUrl as string,
-            });
-            // Then open chat with auto-submitted question
-            openChatWithQuestion(`Is ${name} by ${brand} safe and suitable for my child?`);
-          }}
-        >
-          <View style={styles.aiButtonIcon}>
-            <Brain size={20} color={colors.white} />
-          </View>
-          <View style={styles.aiButtonContent}>
-            <Text style={styles.aiButtonTitle}>Ask FreshiesAI about this product</Text>
-            <Text style={styles.aiButtonSubtitle}>Get instant answers and recommendations</Text>
-          </View>
-        </TouchableOpacity>
+                  const getRole = (flags: string[]) => {
+                    if (!flags || flags.length === 0) return 'Ingredient';
+                    if (flags.includes('FRAGRANCE')) return 'Fragrance';
+                    if (flags.includes('SULFATE_SURFACTANT') || flags.includes('STRONG_SURFACTANT')) return 'Foaming cleanser';
+                    if (flags.includes('PARABEN')) return 'Preservative';
+                    return 'Ingredient';
+                  };
 
-        {/* Feedback Strip */}
-        <View style={styles.feedbackStrip}>
-          <Text style={styles.feedbackQuestion}>Does this feel right for your child?</Text>
-          <View style={styles.feedbackButtons}>
-            <TouchableOpacity style={styles.feedbackButton}>
-              <Text style={styles.feedbackButtonText}>Makes sense</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.feedbackButton}>
-              <Text style={styles.feedbackButtonText}>Too strict</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.feedbackButton}>
-              <Text style={styles.feedbackButtonText}>Too soft</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.feedbackButton}>
-              <Text style={styles.feedbackButtonText}>Something's wrong</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
+                  // Group ingredients by concern level
+                  const lowConcern = ingredients.normalised.filter((ing: any) => (ing.safetyRating || 0) <= 10);
+                  const mildConcern = ingredients.normalised.filter((ing: any) => (ing.safetyRating || 0) > 10 && (ing.safetyRating || 0) <= 30);
+                  const mediumConcern = ingredients.normalised.filter((ing: any) => (ing.safetyRating || 0) > 30 && (ing.safetyRating || 0) <= 60);
+                  const highConcern = ingredients.normalised.filter((ing: any) => (ing.safetyRating || 0) > 60);
 
-        {/* Actions */}
-        <View style={styles.actions}>
-          <TouchableOpacity 
-            style={styles.primaryButton}
-            onPress={() => {
-              if (children.length === 0) {
-                Alert.alert(
-                  'No Children Added',
-                  'Please add a child to your family first.',
-                  [
-                    { text: 'Cancel', style: 'cancel' },
-                    { text: 'Add Child', onPress: () => router.push('/family/add-child' as any) }
-                  ]
-                );
-              } else if (children.length === 1) {
-                // Directly add to the only child
-                handleAddToChild(children[0]);
-              } else {
-                // Show child selector
-                setShowChildSelector(true);
-              }
-            }}
-            disabled={addingProduct}
-          >
-            <Text style={styles.primaryButtonText}>
-              {addingProduct ? 'Adding...' : 'Add to Child\'s Products'}
-            </Text>
-          </TouchableOpacity>
-        </View>
+                  const toggleGroup = (groupTitle: string) => {
+                    const newExpanded = new Set(expandedGroups);
+                    if (newExpanded.has(groupTitle)) {
+                      newExpanded.delete(groupTitle);
+                    } else {
+                      newExpanded.add(groupTitle);
+                    }
+                    setExpandedGroups(newExpanded);
+                  };
 
-        {/* How Freshies Assesses - Expandable */}
-        <View ref={assessmentSectionRef} style={styles.assessmentSection}>
-          <TouchableOpacity 
-            style={styles.assessmentHeader}
-            onPress={() => {
-              const wasExpanded = ingredientsExpanded;
-              setIngredientsExpanded(!ingredientsExpanded);
-              // Scroll to section after expansion
-              if (!wasExpanded) {
-                setTimeout(() => {
-                  assessmentSectionRef.current?.measureLayout(
-                    scrollViewRef.current as any,
-                    (x, y) => {
-                      scrollViewRef.current?.scrollTo({ 
-                        y: y - 100, 
-                        animated: true 
-                      });
-                    },
-                    () => {}
+                  const renderIngredientGroup = (title: string, items: any[], concernStyle: any) => {
+                    if (items.length === 0) return null;
+                    const isExpanded = expandedGroups.has(title);
+
+                    return (
+                      <View key={title} style={styles.ingredientGroup}>
+                        <TouchableOpacity
+                          style={[styles.ingredientGroupHeader, { backgroundColor: concernStyle.bg }]}
+                          onPress={() => toggleGroup(title)}
+                        >
+                          <View style={styles.ingredientGroupHeaderLeft}>
+                            <View style={[styles.groupDot, { backgroundColor: concernStyle.color }]} />
+                            <Text style={styles.ingredientGroupTitle}>{title} ({items.length})</Text>
+                          </View>
+                          {isExpanded ? (
+                            <ChevronUp size={20} color={concernStyle.color} />
+                          ) : (
+                            <ChevronDown size={20} color={concernStyle.color} />
+                          )}
+                        </TouchableOpacity>
+                        {isExpanded && items.map((ing: any, index: number) => (
+                          <TouchableOpacity
+                            key={index}
+                            style={styles.ingredientRow}
+                            onPress={() => setSelectedIngredient(ing)}
+                          >
+                            <View style={styles.ingredientInfo}>
+                              <Text style={styles.ingredientNameText}>{ing.canonicalName}</Text>
+                              <Text style={styles.ingredientRole}>{getRole(ing.flags)}</Text>
+                            </View>
+                          </TouchableOpacity>
+                        ))}
+                      </View>
+                    );
+                  };
+
+                  return (
+                    <View style={styles.ingredientsList}>
+                      {renderIngredientGroup('Low Concern', lowConcern, getConcernStyle(5))}
+                      {renderIngredientGroup('Mild Concern', mildConcern, getConcernStyle(20))}
+                      {renderIngredientGroup('Medium Concern', mediumConcern, getConcernStyle(45))}
+                      {renderIngredientGroup('High Concern', highConcern, getConcernStyle(80))}
+                    </View>
                   );
-                }, 300);
+                })()}
+              </>
+            ) : (
+              /* No ingredients - show scan prompt */
+              <View style={styles.ingredientsSummaryHeader}>
+                <View style={styles.ingredientsSummaryContent}>
+                  <Text style={styles.ingredientsHeaderTitle}>
+                    Ingredients
+                  </Text>
+                  <Text style={styles.ingredientsSummaryText}>
+                    No ingredient data yet
+                  </Text>
+                </View>
+              </View>
+            )}
+
+            {/* Prompt to add ingredients if missing */}
+            {(!ingredients.normalised || ingredients.normalised.length === 0) && (
+              <TouchableOpacity
+                style={styles.addIngredientsButton}
+                onPress={() => {
+                  Alert.alert(
+                    'Add Ingredients',
+                    'Take a photo of the ingredients list on the back of the product to get a full safety analysis.',
+                    [
+                      { text: 'Cancel', style: 'cancel' },
+                      { text: 'Scan Ingredients', onPress: () => router.back() }
+                    ]
+                  );
+                }}
+              >
+                <Text style={styles.addIngredientsButtonText}>📷 Scan ingredient list</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+
+          {/* User Reviews Section */}
+          <View style={styles.reviewsSection}>
+            <Text style={styles.reviewsSectionTitle}>What other parents say</Text>
+            <Text style={styles.reviewsSectionSubtitle}>Shared anonymously by Freshies parents</Text>
+
+            {/* Review Statistics */}
+            {reviewSummary && reviewSummary.total_reviews > 0 && (
+              <ReviewStatistics summary={reviewSummary} />
+            )}
+
+            {loadingReviews ? (
+              <View style={styles.reviewsLoading}>
+                <ActivityIndicator size="small" color={colors.purple} />
+                <Text style={styles.reviewsLoadingText}>Loading reviews...</Text>
+              </View>
+            ) : reviews.length === 0 ? (
+              <View style={styles.reviewsEmpty}>
+                <Text style={styles.reviewsEmptyText}>
+                  No reviews yet. Be the first to share your experience!
+                </Text>
+              </View>
+            ) : (
+              <View style={styles.reviewsList}>
+                {reviews.map(review => {
+                  const experienceLabels = {
+                    worked_well: '✅ Worked well',
+                    somewhat: '😐 Somewhat',
+                    no_irritation: '❌ No / Irritation',
+                  };
+
+                  const contextParts = [];
+                  if (review.child_age) contextParts.push(`Age ${review.child_age}`);
+                  if (review.child_skin_type) contextParts.push(`${review.child_skin_type} skin`);
+                  if (review.child_allergies && review.child_allergies.length > 0) {
+                    contextParts.push(`Allergies: ${review.child_allergies.join(', ')}`);
+                  }
+                  const context = contextParts.length > 0 ? contextParts.join(' • ') : 'Parent';
+
+                  return (
+                    <View key={review.id} style={styles.reviewCard}>
+                      <View style={styles.reviewExperienceBadge}>
+                        <Text style={styles.reviewExperienceText}>
+                          {experienceLabels[review.experience_rating]}
+                        </Text>
+                      </View>
+
+                      {review.review_text && (
+                        <Text style={styles.reviewText}>"{review.review_text}"</Text>
+                      )}
+
+                      <View style={styles.reviewMeta}>
+                        <Text style={styles.reviewContext}>{context}</Text>
+                        <View style={styles.reviewHelpfulActions}>
+                          <TouchableOpacity
+                            style={styles.reviewHelpfulButton}
+                            onPress={async () => {
+                              if (!user) {
+                                Alert.alert('Sign in required', 'Please sign in to mark reviews as helpful');
+                                return;
+                              }
+                              try {
+                                await markReviewHelpful(review.id, user.id, true);
+                                // Reload reviews and summary
+                                const [updatedReviews, updatedSummary] = await Promise.all([
+                                  getProductReviews(barcode as string, user.id),
+                                  getProductReviewSummary(barcode as string),
+                                ]);
+                                setReviews(updatedReviews);
+                                setReviewSummary(updatedSummary);
+                              } catch (error) {
+                                console.error('Error marking helpful:', error);
+                              }
+                            }}
+                          >
+                            <ThumbsUp
+                              size={16}
+                              color={review.user_helpfulness_vote === true ? colors.purple : colors.charcoal}
+                              fill={review.user_helpfulness_vote === true ? colors.purple : 'none'}
+                            />
+                            <Text style={styles.reviewHelpfulCount}>{review.helpful_count}</Text>
+                          </TouchableOpacity>
+                        </View>
+                      </View>
+                    </View>
+                  );
+                })}
+              </View>
+            )}
+
+            {/* Share Your Experience Button */}
+            <TouchableOpacity
+              style={styles.shareExperienceButton}
+              onPress={() => setShowReviewModal(true)}
+            >
+              <Text style={styles.shareExperienceButtonText}>Share your experience</Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Review Submission Modal */}
+          <ReviewSubmissionModal
+            visible={showReviewModal}
+            onClose={() => setShowReviewModal(false)}
+            onSubmit={async (reviewData: CreateReviewRequest, rating?: number) => {
+              if (!user) return;
+
+              // Submit review
+              await createReview(reviewData, user.id);
+
+              // Submit rating if provided
+              if (rating && rating > 0) {
+                await rateProduct({
+                  product_barcode: barcode as string,
+                  rating,
+                  child_id: reviewData.child_id,
+                }, user.id);
               }
+
+              // Reload reviews and summary
+              const [updatedReviews, updatedSummary] = await Promise.all([
+                getProductReviews(barcode as string, user.id),
+                getProductReviewSummary(barcode as string),
+              ]);
+              setReviews(updatedReviews);
+              setReviewSummary(updatedSummary);
+            }}
+            productBarcode={barcode as string}
+            productName={name as string}
+            productBrand={brand as string}
+            children={children}
+          />
+
+          {/* Ask FreshiesAI */}
+          <TouchableOpacity
+            style={styles.aiCard}
+            onPress={() => {
+              // Set product context first
+              useChatContextStore.getState().setLastScannedProduct({
+                name: name as string,
+                brand: brand as string,
+                category: category as string,
+                ingredients_raw: ingredients.rawText || '',
+                barcode: barcode as string,
+                image_url: imageUrl as string,
+              });
+              // Then open chat with auto-submitted question
+              openChatWithQuestion(`Is ${name} by ${brand} safe and suitable for my child?`);
             }}
           >
-            <Text style={styles.assessmentTitle}>How Freshies assesses products</Text>
-            {ingredientsExpanded ? (
-              <ChevronUp size={20} color={colors.charcoal} />
-            ) : (
-              <ChevronDown size={20} color={colors.charcoal} />
-            )}
-          </TouchableOpacity>
-          
-          {ingredientsExpanded && (
-            <View style={styles.assessmentContent}>
-              <Text style={styles.assessmentText}>
-                We read the ingredients list, match known irritants and allergens, and apply child-focused safety logic.
-              </Text>
-              <Text style={styles.assessmentText}>
-                This is informational guidance and not medical advice. Always consult your pediatrician or dermatologist for specific concerns.
-              </Text>
-              <Text style={styles.assessmentText}>
-                We show when data is incomplete or uncertain, and err on the side of caution for children's safety.
-              </Text>
+            <View style={styles.aiButtonIcon}>
+              <Brain size={20} color={colors.white} />
             </View>
-          )}
-        </View>
-        
+            <View style={styles.aiButtonContent}>
+              <Text style={styles.aiButtonTitle}>Ask FreshiesAI about this product</Text>
+              <Text style={styles.aiButtonSubtitle}>Get instant answers and recommendations</Text>
+            </View>
+          </TouchableOpacity>
+
+          {/* Feedback Strip */}
+          <View style={styles.feedbackStrip}>
+            <Text style={styles.feedbackQuestion}>Does this feel right for your child?</Text>
+            <View style={styles.feedbackButtons}>
+              <TouchableOpacity style={styles.feedbackButton}>
+                <Text style={styles.feedbackButtonText}>Makes sense</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.feedbackButton}>
+                <Text style={styles.feedbackButtonText}>Too strict</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.feedbackButton}>
+                <Text style={styles.feedbackButtonText}>Too soft</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.feedbackButton}>
+                <Text style={styles.feedbackButtonText}>Something's wrong</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          {/* Actions */}
+          <View style={styles.actions}>
+            <TouchableOpacity
+              style={styles.primaryButton}
+              onPress={() => {
+                if (children.length === 0) {
+                  Alert.alert(
+                    'No Children Added',
+                    'Please add a child to your family first.',
+                    [
+                      { text: 'Cancel', style: 'cancel' },
+                      { text: 'Add Child', onPress: () => router.push('/family/add-child' as any) }
+                    ]
+                  );
+                } else if (children.length === 1) {
+                  // Directly add to the only child
+                  handleAddToChild(children[0]);
+                } else {
+                  // Show child selector
+                  setShowChildSelector(true);
+                }
+              }}
+              disabled={addingProduct}
+            >
+              <Text style={styles.primaryButtonText}>
+                {addingProduct ? 'Adding...' : 'Add to Child\'s Products'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* How Freshies Assesses - Expandable */}
+          <View ref={assessmentSectionRef} style={styles.assessmentSection}>
+            <TouchableOpacity
+              style={styles.assessmentHeader}
+              onPress={() => {
+                const wasExpanded = ingredientsExpanded;
+                setIngredientsExpanded(!ingredientsExpanded);
+                // Scroll to section after expansion
+                if (!wasExpanded) {
+                  setTimeout(() => {
+                    assessmentSectionRef.current?.measureLayout(
+                      scrollViewRef.current as any,
+                      (x, y) => {
+                        scrollViewRef.current?.scrollTo({
+                          y: y - 100,
+                          animated: true
+                        });
+                      },
+                      () => { }
+                    );
+                  }, 300);
+                }
+              }}
+            >
+              <Text style={styles.assessmentTitle}>How Freshies assesses products</Text>
+              {ingredientsExpanded ? (
+                <ChevronUp size={20} color={colors.charcoal} />
+              ) : (
+                <ChevronDown size={20} color={colors.charcoal} />
+              )}
+            </TouchableOpacity>
+
+            {ingredientsExpanded && (
+              <View style={styles.assessmentContent}>
+                <Text style={styles.assessmentText}>
+                  We read the ingredients list, match known irritants and allergens, and apply child-focused safety logic.
+                </Text>
+                <Text style={styles.assessmentText}>
+                  This is informational guidance and not medical advice. Always consult your pediatrician or dermatologist for specific concerns.
+                </Text>
+                <Text style={styles.assessmentText}>
+                  We show when data is incomplete or uncertain, and err on the side of caution for children's safety.
+                </Text>
+              </View>
+            )}
+          </View>
+
         </View>
       </ScrollView>
-      
+
       {/* Child Selector Modal */}
       <Modal
         visible={showChildSelector}
@@ -1111,23 +1285,23 @@ export default function ProductResultScreen() {
         onRequestClose={() => setShowChildSelector(false)}
       >
         <View style={styles.modalOverlay}>
-          <Pressable 
-            style={styles.modalBackdrop} 
+          <Pressable
+            style={styles.modalBackdrop}
             onPress={() => setShowChildSelector(false)}
           />
           <View style={styles.modalContent}>
             <View style={styles.modalHandle} />
-            
+
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Add to Child's Products</Text>
               <TouchableOpacity onPress={() => setShowChildSelector(false)}>
                 <X size={24} color={colors.charcoal} />
               </TouchableOpacity>
             </View>
-            
+
             <ScrollView style={styles.modalScroll}>
               <Text style={styles.modalSubtitle}>Select which child to add this product for:</Text>
-              
+
               {children.map((child) => (
                 <TouchableOpacity
                   key={child.id}
@@ -1159,28 +1333,28 @@ export default function ProductResultScreen() {
       {/* Ingredient Detail Drawer */}
       {selectedIngredient && (
         <View style={styles.drawerOverlay}>
-          <TouchableOpacity 
-            style={styles.drawerBackdrop} 
+          <TouchableOpacity
+            style={styles.drawerBackdrop}
             activeOpacity={1}
             onPress={() => setSelectedIngredient(null)}
           />
           <View style={styles.drawerContent}>
             <View style={styles.drawerHandle} />
-            
+
             <View style={styles.drawerHeader}>
               <Text style={styles.drawerTitle}>{selectedIngredient.canonicalName}</Text>
               <TouchableOpacity onPress={() => setSelectedIngredient(null)}>
                 <X size={24} color={colors.charcoal} />
               </TouchableOpacity>
             </View>
-            
+
             <ScrollView style={styles.drawerScroll}>
               {(() => {
                 // Get detailed ingredient info from database
                 const ingredientInfo = getIngredientInfo(selectedIngredient.canonicalName);
                 const genericInfo = getGenericIngredientInfo(selectedIngredient.flags);
                 const info = ingredientInfo || genericInfo;
-                
+
                 return (
                   <>
                     {/* Safety Rating */}
@@ -1190,12 +1364,12 @@ export default function ProductResultScreen() {
                         <Text style={styles.drawerRatingScore}>{selectedIngredient.safetyRating || 0}/100</Text>
                         <Text style={styles.drawerRatingLabel}>
                           {selectedIngredient.safetyRating <= 10 ? 'Low Concern' :
-                           selectedIngredient.safetyRating <= 30 ? 'Mild Concern' :
-                           selectedIngredient.safetyRating <= 60 ? 'Medium Concern' : 'High Concern'}
+                            selectedIngredient.safetyRating <= 30 ? 'Mild Concern' :
+                              selectedIngredient.safetyRating <= 60 ? 'Medium Concern' : 'High Concern'}
                         </Text>
                       </View>
                     </View>
-                    
+
                     {/* Category */}
                     {info.category && (
                       <View style={styles.drawerSection}>
@@ -1203,7 +1377,7 @@ export default function ProductResultScreen() {
                         <Text style={styles.drawerText}>{info.category}</Text>
                       </View>
                     )}
-                    
+
                     {/* Description */}
                     {info.description && (
                       <View style={styles.drawerSection}>
@@ -1211,7 +1385,7 @@ export default function ProductResultScreen() {
                         <Text style={styles.drawerText}>{info.description}</Text>
                       </View>
                     )}
-                    
+
                     {/* What it does */}
                     {info.whatItDoes && (
                       <View style={styles.drawerSection}>
@@ -1219,7 +1393,7 @@ export default function ProductResultScreen() {
                         <Text style={styles.drawerText}>{info.whatItDoes}</Text>
                       </View>
                     )}
-                    
+
                     {/* Benefits */}
                     {ingredientInfo?.benefits && ingredientInfo.benefits.length > 0 && (
                       <View style={styles.drawerSection}>
@@ -1232,7 +1406,7 @@ export default function ProductResultScreen() {
                         ))}
                       </View>
                     )}
-                    
+
                     {/* Concerns */}
                     {ingredientInfo?.concerns && ingredientInfo.concerns.length > 0 && (
                       <View style={styles.drawerSection}>
@@ -1245,7 +1419,7 @@ export default function ProductResultScreen() {
                         ))}
                       </View>
                     )}
-                    
+
                     {/* Child Safety */}
                     {info.childSafety && (
                       <View style={styles.drawerSection}>
@@ -1258,7 +1432,7 @@ export default function ProductResultScreen() {
                         <Text style={styles.drawerText}>{info.childSafety.notes}</Text>
                       </View>
                     )}
-                    
+
                     {/* Common Uses */}
                     {ingredientInfo?.commonUses && ingredientInfo.commonUses.length > 0 && (
                       <View style={styles.drawerSection}>
@@ -1272,7 +1446,7 @@ export default function ProductResultScreen() {
                         </View>
                       </View>
                     )}
-                    
+
                     {/* Fun Fact */}
                     {ingredientInfo?.funFact && (
                       <View style={[styles.drawerSection, { borderBottomWidth: 0 }]}>
@@ -1308,6 +1482,84 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.cream,
     paddingHorizontal: spacing[4],
     paddingVertical: spacing[3],
+  },
+  // Black Banner - Product Info + Scan Again
+  blackBanner: {
+    backgroundColor: colors.black,
+    paddingHorizontal: spacing[4],
+    paddingVertical: spacing[3],
+  },
+  blackBannerContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[3],
+  },
+  blackBannerInfo: {
+    flex: 1,
+  },
+  blackBannerBrand: {
+    fontSize: 10,
+    fontWeight: '500',
+    color: 'rgba(255, 255, 255, 0.6)',
+    marginBottom: 2,
+  },
+  blackBannerName: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.white,
+  },
+  scanAgainButton: {
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    paddingHorizontal: spacing[3],
+    paddingVertical: spacing[2],
+    borderRadius: radii.md,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+  },
+  scanAgainButtonText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.white,
+  },
+  notRightProductHint: {
+    fontSize: 11,
+    color: 'rgba(255, 255, 255, 0.5)',
+    marginTop: spacing[2],
+  },
+  // Purple Banner - Add Ingredients CTA
+  purpleBanner: {
+    backgroundColor: colors.purple,
+    paddingHorizontal: spacing[4],
+    paddingVertical: spacing[3],
+  },
+  purpleBannerContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[3],
+  },
+  purpleBannerTextSection: {
+    flex: 1,
+  },
+  purpleBannerTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.white,
+    marginBottom: 2,
+  },
+  purpleBannerSubtitle: {
+    fontSize: 12,
+    color: 'rgba(255, 255, 255, 0.7)',
+  },
+  addIngredientsButton: {
+    backgroundColor: colors.white,
+    paddingHorizontal: spacing[3],
+    paddingVertical: spacing[2],
+    borderRadius: radii.md,
+  },
+  addIngredientsButtonText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.purple,
   },
   scanConfirmationContent: {
     flexDirection: 'row',
@@ -1357,6 +1609,19 @@ const styles = StyleSheet.create({
   confidencePillText: {
     fontSize: 11,
     fontWeight: '600',
+  },
+  addPhotoButtonSmall: {
+    alignSelf: 'flex-start',
+    backgroundColor: colors.purple,
+    paddingHorizontal: spacing[3],
+    paddingVertical: spacing[1],
+    borderRadius: radii.md,
+    marginTop: spacing[1],
+  },
+  addPhotoButtonSmallText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.white,
   },
   wrongProductLink: {
     marginTop: spacing[2],
@@ -1565,7 +1830,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
     color: colors.mint,
-    textTransform: 'uppercase',
     letterSpacing: 1,
     marginBottom: spacing[2],
     textAlign: 'center',
@@ -1587,7 +1851,7 @@ const styles = StyleSheet.create({
   },
   productSize: {
     fontSize: 14,
-    color: colors.cream,
+    color: '#888888', // Light grey for readability
     marginBottom: spacing[4],
     textAlign: 'center',
   },
@@ -2318,6 +2582,84 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: colors.charcoal,
     lineHeight: 20,
+  },
+  // AI Identified Product Banner
+  aiIdentifiedBanner: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing[3],
+    backgroundColor: colors.purple + '15',
+    marginHorizontal: spacing[6],
+    marginTop: spacing[4],
+    padding: spacing[4],
+    borderRadius: radii.md,
+    borderLeftWidth: 3,
+    borderLeftColor: colors.purple,
+  },
+  aiIdentifiedTextContainer: {
+    flex: 1,
+  },
+  aiIdentifiedTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.purple,
+    marginBottom: spacing[1],
+  },
+  aiIdentifiedText: {
+    fontSize: 13,
+    color: colors.charcoal,
+    lineHeight: 18,
+    opacity: 0.8,
+  },
+  // Incomplete Data Card with Photo Capture
+  incompleteDataCard: {
+    backgroundColor: colors.purple + '12',
+    marginHorizontal: spacing[6],
+    marginTop: spacing[4],
+    padding: spacing[4],
+    borderRadius: radii.lg,
+    borderWidth: 1,
+    borderColor: colors.purple + '30',
+  },
+  incompleteDataHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing[3],
+    marginBottom: spacing[3],
+  },
+  incompleteDataTextContainer: {
+    flex: 1,
+  },
+  incompleteDataTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: colors.purple,
+    marginBottom: spacing[1],
+  },
+  incompleteDataText: {
+    fontSize: 13,
+    color: colors.charcoal,
+    lineHeight: 18,
+    opacity: 0.85,
+  },
+  captureIngredientsButton: {
+    backgroundColor: colors.purple,
+    paddingVertical: spacing[3],
+    paddingHorizontal: spacing[4],
+    borderRadius: radii.md,
+    alignItems: 'center',
+    marginBottom: spacing[2],
+  },
+  captureIngredientsButtonText: {
+    color: colors.white,
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  captureIngredientsHint: {
+    fontSize: 12,
+    color: colors.charcoal,
+    opacity: 0.6,
+    textAlign: 'center',
   },
   // Incomplete Data Banner
   incompleteBanner: {

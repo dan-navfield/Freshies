@@ -56,7 +56,7 @@ async function callOpenAI<T>(
         'Authorization': `Bearer ${OPENAI_API_KEY}`,
       },
       body: JSON.stringify({
-        model: DEFAULT_MODEL,
+        model: options.model || DEFAULT_MODEL,
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt },
@@ -129,7 +129,7 @@ export async function summariseRiskForParent(
   input: SummariseRiskInput,
   options?: AIOptions
 ): Promise<SummariseRiskOutput> {
-  const basePrompt = await getSystemPrompt('summarise_risk');
+  const basePrompt = await getSystemPrompt('summarise_risk_for_parent');
   const systemPrompt = `${basePrompt}
 
 Explain product safety in parent-friendly language. Be calm and practical.
@@ -245,7 +245,10 @@ export async function routeQuestion(
   input: RouteQuestionInput,
   options?: AIOptions
 ): Promise<RouteQuestionOutput> {
-  const systemPrompt = `You are a question router for FreshiesAI, a kids' skincare assistant.
+  const basePrompt = await getSystemPrompt('interpret_question_and_route');
+  const systemPrompt = `${basePrompt}
+
+You are a question router for FreshiesAI, a kids' skincare assistant.
 
 Analyse the parent's question and determine:
 1. The intent (what they're trying to accomplish)

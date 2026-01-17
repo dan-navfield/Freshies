@@ -1,4 +1,4 @@
-import { supabase } from '../../lib/supabase';
+import { supabase } from '../lib/supabase';
 
 export type AchievementCategory = 'routine' | 'products' | 'learning' | 'social' | 'special';
 export type AchievementRarity = 'common' | 'rare' | 'epic' | 'legendary';

@@ -6,7 +6,9 @@
 
 import * as OpenAIProvider from './providers/openai';
 import * as ClaudeProvider from './providers/claude';
+import * as MistralProvider from './providers/mistral';
 import { getEffectiveAIProvider } from '../../stores/settingsStore';
+import { isCapabilityPaused, loadActivePromptTemplate } from '../config/promptLoader';
 import {
   AnalyseIngredientsInput,
   AnalyseIngredientsOutput,
@@ -31,7 +33,7 @@ import {
 // Provider Selection
 // ============================================================================
 
-function getProvider(preferredProvider?: AIProvider): 'openai' | 'claude' {
+function getProvider(preferredProvider?: AIProvider): 'openai' | 'claude' | 'mistral' {
   // Use explicitly passed provider, or get from settings store
   const effectiveProvider = preferredProvider || getEffectiveAIProvider();
   
@@ -39,19 +41,18 @@ function getProvider(preferredProvider?: AIProvider): 'openai' | 'claude' {
     // Auto-select based on availability
     const hasOpenAI = !!process.env.EXPO_PUBLIC_OPENAI_API_KEY;
     const hasClaude = !!process.env.EXPO_PUBLIC_CLAUDE_API_KEY;
-    
-    if (hasOpenAI && hasClaude) {
-      // Both available - default to OpenAI (more stable for production)
-      return 'openai';
-    }
+    const hasMistral = !!process.env.MISTRAL_API_KEY || !!process.env.EXPO_PUBLIC_MISTRAL_API_KEY;
     
     if (hasOpenAI) return 'openai';
+    if (hasMistral) return 'mistral';
     if (hasClaude) return 'claude';
     
     throw new Error('No AI provider configured');
   }
   
-  return effectiveProvider;
+  if (effectiveProvider === 'mistral') return 'mistral';
+  if (effectiveProvider === 'openai' || effectiveProvider === 'claude') return effectiveProvider;
+  throw new Error('Unsupported AI provider');
 }
 
 // ============================================================================
@@ -85,17 +86,35 @@ function logAICall(log: AICallLog) {
 
 async function callWithFallback<T>(
   toolName: string,
-  openaiFunc: () => Promise<T>,
-  claudeFunc: () => Promise<T>,
+  openaiFunc: (opts: AIOptions) => Promise<T>,
+  mistralFunc: (opts: AIOptions) => Promise<T>,
+  claudeFunc: (opts: AIOptions) => Promise<T>,
   options: AIOptions = {}
 ): Promise<T> {
   const startTime = Date.now();
-  const provider = getProvider(options.provider);
+
+  if (await isCapabilityPaused(toolName)) {
+    throw new Error(`AI capability is paused: ${toolName}`);
+  }
+
+  const tpl = await loadActivePromptTemplate(toolName, 'system');
+  const configuredProvider = tpl.model_preferences?.provider as AIProvider | undefined;
+  const configuredModel = tpl.model_preferences?.model as string | undefined;
+
+  const effectiveOptions: AIOptions = {
+    ...options,
+    provider: options.provider && options.provider !== 'auto' ? options.provider : configuredProvider || options.provider,
+    model: options.model || configuredModel,
+  };
+
+  const provider = getProvider(effectiveOptions.provider);
   
   try {
-    const result = provider === 'openai' 
-      ? await openaiFunc()
-      : await claudeFunc();
+    const result = provider === 'openai'
+      ? await openaiFunc(effectiveOptions)
+      : provider === 'mistral'
+        ? await mistralFunc(effectiveOptions)
+        : await claudeFunc(effectiveOptions);
     
     logAICall({
       tool: toolName,
@@ -119,17 +138,19 @@ async function callWithFallback<T>(
     });
     
     // Try fallback provider if primary fails
-    if (options.provider !== 'auto') {
+    if (effectiveOptions.provider !== 'auto') {
       throw error; // Don't fallback if user explicitly chose a provider
     }
-    
-    const fallbackProvider = provider === 'openai' ? 'claude' : 'openai';
+
+    const fallbackProvider = provider === 'openai' ? 'mistral' : 'openai';
     console.log(`⚠️ Trying fallback provider: ${fallbackProvider}`);
     
     try {
       const result = fallbackProvider === 'openai'
-        ? await openaiFunc()
-        : await claudeFunc();
+        ? await openaiFunc(effectiveOptions)
+        : fallbackProvider === 'mistral'
+          ? await mistralFunc(effectiveOptions)
+          : await claudeFunc(effectiveOptions);
       
       logAICall({
         tool: toolName,
@@ -171,8 +192,9 @@ export async function analyseProductForChild(
   
   return callWithFallback(
     'analyse_ingredients',
-    () => OpenAIProvider.analyseIngredients(input, options),
-    () => ClaudeProvider.analyseIngredients(input, options),
+    (opts) => OpenAIProvider.analyseIngredients(input, opts),
+    (opts) => MistralProvider.analyseIngredients(input, opts),
+    (opts) => ClaudeProvider.analyseIngredients(input, opts),
     options
   );
 }
@@ -198,8 +220,9 @@ export async function getProductSummaryForParent(
   
   return callWithFallback(
     'summarise_risk_for_parent',
-    () => OpenAIProvider.summariseRiskForParent(input, options),
-    () => ClaudeProvider.summariseRiskForParent(input, options),
+    (opts) => OpenAIProvider.summariseRiskForParent(input, opts),
+    (opts) => MistralProvider.summariseRiskForParent(input, opts),
+    (opts) => ClaudeProvider.summariseRiskForParent(input, opts),
     options
   );
 }
@@ -219,8 +242,9 @@ export async function assessRoutineForChild(
   
   return callWithFallback(
     'assess_routine',
-    () => OpenAIProvider.assessRoutine(input, options),
-    () => ClaudeProvider.assessRoutine(input, options),
+    (opts) => OpenAIProvider.assessRoutine(input, opts),
+    (opts) => MistralProvider.assessRoutine(input, opts),
+    (opts) => ClaudeProvider.assessRoutine(input, opts),
     options
   );
 }
@@ -244,8 +268,9 @@ export async function proposeRoutineForChild(
   
   return callWithFallback(
     'propose_routine',
-    () => OpenAIProvider.proposeRoutine(input, options),
-    () => ClaudeProvider.proposeRoutine(input, options),
+    (opts) => OpenAIProvider.proposeRoutine(input, opts),
+    (opts) => MistralProvider.proposeRoutine(input, opts),
+    (opts) => ClaudeProvider.proposeRoutine(input, opts),
     options
   );
 }
@@ -271,8 +296,9 @@ export async function coachParent(
   
   return callWithFallback(
     'coach_parent',
-    () => OpenAIProvider.coachParent(input, options),
-    () => ClaudeProvider.coachParent(input, options),
+    (opts) => OpenAIProvider.coachParent(input, opts),
+    (opts) => MistralProvider.coachParent(input, opts),
+    (opts) => ClaudeProvider.coachParent(input, opts),
     options
   );
 }
@@ -318,9 +344,10 @@ export async function routeQuestion(
   options?: AIOptions
 ): Promise<RouteQuestionOutput> {
   return callWithFallback(
-    'route_question',
-    () => OpenAIProvider.routeQuestion(input, options),
-    () => ClaudeProvider.routeQuestion(input, options),
+    'interpret_question_and_route',
+    (opts) => OpenAIProvider.routeQuestion(input, opts),
+    (opts) => MistralProvider.routeQuestion(input, opts),
+    (opts) => ClaudeProvider.routeQuestion(input, opts),
     options
   );
 }

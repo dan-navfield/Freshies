@@ -3,8 +3,8 @@ import { View, Text, TouchableOpacity, ScrollView, Alert, StyleSheet } from 'rea
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { Users, Baby } from 'lucide-react-native';
-import { supabase } from '../../lib/supabase';
-import { useAuth } from '../../contexts/AuthContext';
+import { supabase } from '../../src/lib/supabase';
+import { useAuth } from '../../src/contexts/AuthContext';
 import { colors, spacing, radii } from '../../src/theme/tokens';
 
 export default function RoleSelectScreen() {

@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { Sparkles, ArrowRight } from 'lucide-react-native';
 import { colors, spacing, radii } from '../../src/theme/tokens';
-import { useAuth } from '../../contexts/AuthContext';
+import { useAuth } from '../../src/contexts/AuthContext';
 
 const { width, height } = Dimensions.get('window');
 
@@ -26,7 +26,7 @@ export default function ChildWelcomeSplash() {
   const navigateToHome = () => {
     if (isNavigating) return;
     setIsNavigating(true);
-    
+
     // Fade out
     Animated.timing(fadeAnim, {
       toValue: 0,
@@ -41,8 +41,8 @@ export default function ChildWelcomeSplash() {
     // Fetch user name
     async function fetchUserName() {
       if (user?.id) {
-        const { supabase } = await import('../../lib/supabase');
-        
+        const { supabase } = await import('../../src/lib/supabase');
+
         // First try to get from child_profiles
         const { data: childProfile } = await supabase
           .from('child_profiles')
@@ -54,19 +54,25 @@ export default function ChildWelcomeSplash() {
           setUserName(childProfile.display_name);
         } else {
           // Fallback to profiles.first_name
-          const { data: profile } = await supabase
+          const { data: profile, error } = await supabase
             .from('profiles')
             .select('first_name')
             .eq('id', user.id)
             .single();
-          
+
+          if (error) {
+            console.log('⚠️ Error fetching profile name:', error.message);
+          }
+
           if (profile?.first_name) {
             setUserName(profile.first_name);
+          } else {
+            console.log('⚠️ No name found in child_profiles or profiles');
           }
         }
       }
     }
-    
+
     fetchUserName();
 
     // Fade in animation
@@ -177,7 +183,7 @@ export default function ChildWelcomeSplash() {
   return (
     <View style={styles.container}>
       <StatusBar style="light" />
-      
+
       {/* Starry Background */}
       <View style={styles.gradient}>
         {/* Stars */}
@@ -198,7 +204,7 @@ export default function ChildWelcomeSplash() {
         ))}
       </View>
 
-      <Animated.View 
+      <Animated.View
         style={[
           styles.content,
           {
@@ -216,7 +222,7 @@ export default function ChildWelcomeSplash() {
         </View>
 
         {/* Middle Section - Cards */}
-        <Animated.View 
+        <Animated.View
           style={[
             styles.imageContainer,
             {
@@ -237,22 +243,22 @@ export default function ChildWelcomeSplash() {
               ]}
               resizeMode="cover"
             />
-            
+
             {/* Dark Gradient Overlay for better text readability */}
             <View style={styles.cardGradientOverlay} />
-            
+
             {/* Text Overlay */}
             <View style={styles.cardOverlay}>
               <Sparkles size={40} color={colors.yellow} strokeWidth={2.5} />
               <Text style={styles.cardText}>Welcome back,</Text>
-              <Text style={styles.cardName}>{userName || 'there'}!</Text>
+              <Text style={styles.cardName}>{userName || 'Friend'}!</Text>
             </View>
           </View>
 
           {/* Side Cards with Hero Images */}
-          <Animated.View 
+          <Animated.View
             style={[
-              styles.sideCard, 
+              styles.sideCard,
               styles.leftCard,
               {
                 transform: [
@@ -271,10 +277,10 @@ export default function ChildWelcomeSplash() {
               <Text style={styles.miniEmoji}>🧴</Text>
             </View>
           </Animated.View>
-          
-          <Animated.View 
+
+          <Animated.View
             style={[
-              styles.sideCard, 
+              styles.sideCard,
               styles.rightCard,
               {
                 transform: [

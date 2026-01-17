@@ -3,9 +3,9 @@ import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Modal } from 'rea
 import { useRouter } from 'expo-router';
 import { Calendar, ChevronLeft, ChevronRight, Sunrise, Sun, Moon, Flame } from 'lucide-react-native';
 import { colors, spacing, radii } from '../../src/theme/tokens';
-import { supabase } from '../../lib/supabase';
+import { supabase } from '../../src/lib/supabase';
 import { useChildProfile } from '../../src/contexts/ChildProfileContext';
-import DetailPageHeader from '../../components/DetailPageHeader';
+import DetailPageHeader from '../../src/components/DetailPageHeader';
 
 interface DayData {
   date: string;

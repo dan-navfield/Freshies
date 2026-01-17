@@ -2,8 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet, TextInput } from 'react-native';
 import { Search, Droplets, Shield, AlertCircle, CheckCircle, Sparkles } from 'lucide-react-native';
 import { colors, spacing, radii } from '../../../src/theme/tokens';
-import { supabase } from '../../../lib/supabase';
-import SubPageHeader from '../../../components/SubPageHeader';
+import { supabase } from '../../../src/lib/supabase';
+import SubPageHeader from '../../../src/components/SubPageHeader';
 
 interface IngredientInfo {
   id: string;

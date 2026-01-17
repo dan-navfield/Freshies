@@ -2,10 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, ScrollView, Image, TouchableOpacity, StyleSheet, Dimensions, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Plus, ChevronRight, Star, Calendar, Image as ImageIcon } from 'lucide-react-native';
-import DetailPageHeader from '../../components/DetailPageHeader';
+import DetailPageHeader from '../../src/components/DetailPageHeader';
 import { colors, spacing, radii } from '../../src/theme/tokens';
-import { useAuth } from '../../contexts/AuthContext';
-import { supabase } from '../../lib/supabase';
+import { useAuth } from '../../src/contexts/AuthContext';
+import { supabase } from '../../src/lib/supabase';
 
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = (width - spacing[6] * 2 - spacing[4]) / 2;
@@ -25,7 +25,7 @@ interface Collection {
 export default function CollectionsScreen() {
   const router = useRouter();
   const { user } = useAuth();
-  
+
   const [loading, setLoading] = useState(true);
   const [collections, setCollections] = useState<Collection[]>([]);
   const [systemCollections, setSystemCollections] = useState<Collection[]>([]);
@@ -88,11 +88,11 @@ export default function CollectionsScreen() {
       );
 
       setCollections(collectionsWithData);
-      
+
       // Separate system and custom collections
       const system = collectionsWithData.filter(c => c.is_system);
       const custom = collectionsWithData.filter(c => !c.is_system);
-      
+
       setSystemCollections(system);
       setCustomCollections(custom);
     } catch (error) {
@@ -105,7 +105,7 @@ export default function CollectionsScreen() {
 
   const renderCollectionCard = (collection: Collection) => {
     const hasPhotos = collection.photo_count && collection.photo_count > 0;
-    
+
     return (
       <TouchableOpacity
         key={collection.id}
@@ -124,9 +124,9 @@ export default function CollectionsScreen() {
                     !collection.preview_images![index] && { backgroundColor: collection.color + '40' }
                   ]}
                 >
-                  {collection.preview_images![index] && (
+                  {collection.preview_images?.[index] && (
                     <Image
-                      source={{ uri: collection.preview_images[index] }}
+                      source={{ uri: collection.preview_images?.[index] }}
                       style={styles.previewImage}
                       resizeMode="cover"
                     />

@@ -4,7 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { ArrowLeft, Sun, Moon, Sunrise, Bell, BellOff } from 'lucide-react-native';
 import { colors, spacing, radii } from '../../src/theme/tokens';
-import { useAuth } from '../../contexts/AuthContext';
+import { useAuth } from '../../src/contexts/AuthContext';
 import { StyleSheet } from 'react-native';
 import {
   getReminders,
@@ -15,7 +15,7 @@ import {
   getSuggestedTimes,
   type RoutineReminder,
 } from '../../src/utils/reminderHelpers';
-import { supabase } from '../../lib/supabase';
+import { supabase } from '../../src/lib/supabase';
 
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 

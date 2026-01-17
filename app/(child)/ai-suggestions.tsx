@@ -4,7 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { ArrowLeft, Sparkles, Check, X, AlertCircle } from 'lucide-react-native';
 import { colors, spacing, radii } from '../../src/theme/tokens';
-import { useAuth } from '../../contexts/AuthContext';
+import { useAuth } from '../../src/contexts/AuthContext';
 import { StyleSheet } from 'react-native';
 import {
   generateRoutineSuggestions,
@@ -12,7 +12,7 @@ import {
   getPriorityColor,
   type RoutineSuggestion,
 } from '../../src/utils/aiRoutineSuggestions';
-import { supabase } from '../../lib/supabase';
+import { supabase } from '../../src/lib/supabase';
 
 export default function AISuggestionsScreen() {
   const router = useRouter();

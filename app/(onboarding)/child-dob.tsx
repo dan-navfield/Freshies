@@ -5,8 +5,8 @@ import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Calendar, ArrowLeft } from 'lucide-react-native';
-import { useAuth } from '../../contexts/AuthContext';
-import { supabase } from '../../lib/supabase';
+import { useAuth } from '../../src/contexts/AuthContext';
+import { supabase } from '../../src/lib/supabase';
 import { colors, spacing, radii } from '../../src/theme/tokens';
 
 const PARENT_AGE_THRESHOLD = 18; // Years

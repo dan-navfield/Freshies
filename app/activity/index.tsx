@@ -2,7 +2,7 @@ import { View, Text, ScrollView, Pressable, StyleSheet, Image, RefreshControl } 
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { colors, radii, spacing } from '../../src/theme/tokens';
-import { useAuth } from '../../contexts/AuthContext';
+import { useAuth } from '../../src/contexts/AuthContext';
 import { ChevronLeft, Filter, Calendar } from 'lucide-react-native';
 import { getParentActivities, groupActivitiesByDate, getActivityStats, getTimeAgo } from '../../src/services/activityService';
 import { ActivityWithChild, ActivityGroup, ActivityStats, ActivityFilter, ACTIVITY_CONFIG, CATEGORY_CONFIG } from '../../src/types/activity';

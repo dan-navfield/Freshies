@@ -6,6 +6,11 @@
 import { LearnArticle, SourceSnapshot, ReviewTask, ContentSource } from './types';
 import { supabase } from '../../lib/supabase-server';
 
+function applyPublishedAtGuard<T>(query: any) {
+  const now = new Date().toISOString();
+  return query.or(`published_at.is.null,published_at.lte.${now}`) as T;
+}
+
 // ============================================================================
 // Article Operations
 // ============================================================================
@@ -20,11 +25,13 @@ export async function getPublishedArticles(options?: {
   limit?: number;
   offset?: number;
 }): Promise<LearnArticle[]> {
-  let query = supabase
+  let query = applyPublishedAtGuard<any>(
+    supabase
     .from('learn_articles')
     .select('*')
     .eq('status', 'published')
-    .order('created_at', { ascending: false });
+    .order('created_at', { ascending: false })
+  );
   
   if (options?.topic) {
     query = query.eq('topic', options.topic);
@@ -55,12 +62,17 @@ export async function getPublishedArticles(options?: {
 /**
  * Get article by ID
  */
-export async function getArticleById(id: string): Promise<LearnArticle | null> {
-  const { data, error } = await supabase
-    .from('learn_articles')
-    .select('*')
-    .eq('id', id)
-    .single();
+export async function getArticleById(
+  id: string,
+  options?: { publishedOnly?: boolean }
+): Promise<LearnArticle | null> {
+  let query: any = supabase.from('learn_articles').select('*').eq('id', id);
+
+  if (options?.publishedOnly) {
+    query = applyPublishedAtGuard<any>(query.eq('status', 'published'));
+  }
+
+  const { data, error } = await query.single();
   
   if (error) throw error;
   return data as LearnArticle;
@@ -119,13 +131,14 @@ export async function updateArticle(
  */
 export async function updateArticleStatus(
   id: string,
-  status: 'draft' | 'review' | 'published' | 'retired'
+  status: 'draft' | 'review' | 'published' | 'retired',
+  options?: { publishedAt?: string }
 ): Promise<void> {
   const updates: any = { status };
   
   // If publishing, set published_at timestamp
   if (status === 'published') {
-    updates.published_at = new Date().toISOString();
+    updates.published_at = options?.publishedAt || new Date().toISOString();
   }
   
   return updateArticle(id, updates);
@@ -154,11 +167,12 @@ export async function getArticlesByStatus(
  */
 export async function publishArticle(
   id: string,
-  publishedBy?: string
+  publishedBy?: string,
+  options?: { publishedAt?: string }
 ): Promise<void> {
   const updates: any = {
     status: 'published',
-    published_at: new Date().toISOString(),
+    published_at: options?.publishedAt || new Date().toISOString(),
   };
   
   if (publishedBy) {

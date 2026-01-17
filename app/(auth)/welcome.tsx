@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react';
 import { Camera, Sparkles, BookOpen } from 'lucide-react-native';
 import { colors, spacing, radii } from '../../src/theme/tokens';
 import FreshiesLogo from '../../assets/logo/freshies-logo-main-colours-responsive.svg';
-import { useAuth } from '../../contexts/AuthContext';
+import { useAuth } from '../../src/contexts/AuthContext';
 import TermsOfService from './terms-of-service';
 import PrivacyPolicy from './privacy-policy';
 
@@ -22,7 +22,7 @@ export default function WelcomeScreen() {
   return (
     <View style={styles.container}>
       <StatusBar style="light" />
-      
+
       {/* Full Screen Image Background */}
       <ImageBackground
         source={require('../../assets/images/welcome-skincare.jpg')}
@@ -31,14 +31,14 @@ export default function WelcomeScreen() {
       >
         {/* Gradient overlay for better text readability */}
         <View style={styles.overlay} />
-        
+
         {/* Content Container */}
         <View style={styles.content}>
           {/* Hero Text */}
           <View style={styles.heroSection}>
             {/* Logo */}
             <View style={styles.logoContainer}>
-              <FreshiesLogo 
+              <FreshiesLogo
                 width={180}
                 height={60}
               />
@@ -59,14 +59,14 @@ export default function WelcomeScreen() {
                 Scan products instantly to check ingredients
               </Text>
             </View>
-            
+
             <View style={styles.featureItem}>
               <Sparkles color="#FFFFFF" size={20} strokeWidth={2.5} />
               <Text style={styles.featureText}>
                 Build personalized skincare routines
               </Text>
             </View>
-            
+
             <View style={[styles.featureItem, { marginBottom: 0 }]}>
               <BookOpen color="#FFFFFF" size={20} strokeWidth={2.5} />
               <Text style={styles.featureText}>
@@ -107,7 +107,7 @@ export default function WelcomeScreen() {
           </Text>
         </View>
       </ImageBackground>
-      
+
       {/* Terms Modal */}
       <Modal
         visible={showTerms}
@@ -117,7 +117,7 @@ export default function WelcomeScreen() {
       >
         <TermsOfService onClose={() => setShowTerms(false)} />
       </Modal>
-      
+
       {/* Privacy Modal */}
       <Modal
         visible={showPrivacy}

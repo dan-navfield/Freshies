@@ -18,17 +18,12 @@ import {
   RouteQuestionOutput,
   AIOptions,
 } from '../types';
-import FRESHIES_AI_META_PROMPT from '../metaPrompt';
+import { loadActivePromptTemplate } from '../../config/promptLoader';
 
 const CLAUDE_API_KEY = process.env.EXPO_PUBLIC_CLAUDE_API_KEY;
 const BASE_URL = 'https://api.anthropic.com/v1/messages';
 const DEFAULT_MODEL = 'claude-3-5-sonnet-20241022';
 const ANTHROPIC_VERSION = '2023-06-01';
-
-// Use comprehensive meta prompt for all interactions
-const SYSTEM_PROMPT_BASE = `${FRESHIES_AI_META_PROMPT}
-
-IMPORTANT: Always respond with valid JSON only. No markdown, no explanations outside the JSON structure.`;
 
 /**
  * Make Claude API call with structured output
@@ -55,7 +50,7 @@ async function callClaude<T>(
         'anthropic-version': ANTHROPIC_VERSION,
       },
       body: JSON.stringify({
-        model: DEFAULT_MODEL,
+        model: options.model || DEFAULT_MODEL,
         max_tokens: options.max_tokens || 4096,
         temperature: options.temperature || 0.7,
         system: systemPrompt,
@@ -97,6 +92,13 @@ async function callClaude<T>(
   }
 }
 
+async function getSystemPrompt(toolName: string): Promise<string> {
+  const tpl = await loadActivePromptTemplate(toolName, 'system');
+  return `${tpl.content}
+
+IMPORTANT: Always respond with valid JSON only. No markdown, no explanations outside the JSON structure.`;
+}
+
 /**
  * Tool 1: Analyse Ingredients
  */
@@ -104,7 +106,7 @@ export async function analyseIngredients(
   input: AnalyseIngredientsInput,
   options?: AIOptions
 ): Promise<AnalyseIngredientsOutput> {
-  const systemPrompt = `${SYSTEM_PROMPT_BASE}
+  const systemPrompt = `${await getSystemPrompt('analyse_ingredients')}
 
 You are analysing product ingredients for child safety. Return a JSON object with:
 - normalised_ingredients: array of uppercase ingredient names
@@ -136,7 +138,7 @@ export async function summariseRiskForParent(
   input: SummariseRiskInput,
   options?: AIOptions
 ): Promise<SummariseRiskOutput> {
-  const systemPrompt = `${SYSTEM_PROMPT_BASE}
+  const systemPrompt = `${await getSystemPrompt('summarise_risk_for_parent')}
 
 Explain product safety in parent-friendly language. Be calm and practical.
 Return JSON with: overall_risk_level, summary_text, bullet_points, practical_tips, disclaimer.`;
@@ -161,7 +163,7 @@ export async function assessRoutine(
   input: AssessRoutineInput,
   options?: AIOptions
 ): Promise<AssessRoutineOutput> {
-  const systemPrompt = `${SYSTEM_PROMPT_BASE}
+  const systemPrompt = `${await getSystemPrompt('assess_routine')}
 
 Analyse a child's skincare routine for safety and effectiveness.
 Check for: product conflicts, over-complication, age-appropriateness, duplication of actives.
@@ -190,7 +192,7 @@ export async function proposeRoutine(
   input: ProposeRoutineInput,
   options?: AIOptions
 ): Promise<ProposeRoutineOutput> {
-  const systemPrompt = `${SYSTEM_PROMPT_BASE}
+  const systemPrompt = `${await getSystemPrompt('propose_routine')}
 
 Design a simple, age-appropriate skincare routine for a child.
 Keep it minimal - children don't need complex routines.
@@ -220,7 +222,7 @@ export async function coachParent(
   input: CoachParentInput,
   options?: AIOptions
 ): Promise<CoachParentOutput> {
-  const systemPrompt = `${SYSTEM_PROMPT_BASE}
+  const systemPrompt = `${await getSystemPrompt('coach_parent')}
 
 Answer parent questions about children's skincare with practical, evidence-based guidance.
 Be supportive and clear. Encourage professional consultation when appropriate.
@@ -247,7 +249,9 @@ export async function routeQuestion(
   input: RouteQuestionInput,
   options?: AIOptions
 ): Promise<RouteQuestionOutput> {
-  const systemPrompt = `You are a question router for FreshiesAI, a kids' skincare assistant.
+  const systemPrompt = `${await getSystemPrompt('interpret_question_and_route')}
+
+You are a question router for FreshiesAI, a kids' skincare assistant.
 
 Analyse the parent's question and determine:
 1. The intent (what they're trying to accomplish)

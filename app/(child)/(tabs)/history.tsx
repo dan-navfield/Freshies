@@ -4,11 +4,11 @@ import { useRouter } from 'expo-router';
 import { ChevronLeft, ChevronRight, Calendar, TrendingUp, CheckCircle, Package } from 'lucide-react-native';
 import { colors, spacing, radii } from '../../../src/theme/tokens';
 import { useChildProfile } from '../../../src/contexts/ChildProfileContext';
-import { supabase } from '../../../lib/supabase';
+import { supabase } from '../../../src/lib/supabase';
 import { getDailyCompletions, calculateStreak, type DailyCompletion } from '../../../src/utils/streakCalculator';
 import { StyleSheet } from 'react-native';
-import PageHeader from '../../../components/PageHeader';
-import GamificationBand from '../../../components/GamificationBand';
+import PageHeader from '../../../src/components/PageHeader';
+import GamificationBand from '../../../src/components/GamificationBand';
 
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];

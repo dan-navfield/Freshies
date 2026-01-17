@@ -2,10 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet } from 'react-native';
 import { Sun, Droplets, Moon, Sparkles, Heart, Shield, Star } from 'lucide-react-native';
 import { colors, spacing, radii } from '../../../src/theme/tokens';
-import SubPageHeader from '../../../components/SubPageHeader';
+import SubPageHeader from '../../../src/components/SubPageHeader';
 import { useChildProfile } from '../../../src/contexts/ChildProfileContext';
 import { trackLearningProgress } from '../../../src/services/gamificationService';
-import { supabase } from '../../../lib/supabase';
+import { supabase } from '../../../src/lib/supabase';
 
 interface Tip {
   id: string;
@@ -171,9 +171,9 @@ export default function TipsScreen() {
       if (!error && data) {
         const readIds = new Set(data.map(item => item.content_id));
         setReadTipIds(readIds);
-        
+
         // Update tips with read status
-        setTips(prevTips => 
+        setTips(prevTips =>
           prevTips.map(tip => ({
             ...tip,
             isRead: readIds.has(tip.id)
@@ -204,7 +204,7 @@ export default function TipsScreen() {
       // Update local state
       setReadTipIds(prev => new Set([...prev, tip.id]));
       setTips(prevTips =>
-        prevTips.map(t => 
+        prevTips.map(t =>
           t.id === tip.id ? { ...t, isRead: true } : t
         )
       );
@@ -230,6 +230,8 @@ export default function TipsScreen() {
         infoStripColor={colors.purple}
         infoStripText={`${readCount}/${tips.length} tips read • Learn healthy skincare habits! 💜`}
         backRoute="/(child)/learn"
+        showSearch={true}
+        searchPlaceholder="Search tips..."
       />
 
       <ScrollView style={styles.scrollContent} showsVerticalScrollIndicator={false}>

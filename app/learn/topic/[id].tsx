@@ -69,11 +69,13 @@ export default function TopicListScreen() {
 
   async function loadArticles() {
     try {
+      const now = new Date().toISOString();
       const { data, error } = await supabase
         .from('learn_articles')
         .select('*')
         .eq('topic', id)
         .eq('status', 'published')
+        .or(`published_at.is.null,published_at.lte.${now}`)
         .order('created_at', { ascending: false });
 
       if (error) throw error;

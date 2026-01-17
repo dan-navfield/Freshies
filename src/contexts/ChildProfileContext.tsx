@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { supabase } from '../lib/supabase';
-import { useAuth } from '../../contexts/AuthContext';
+import { useAuth } from './AuthContext';
 import type { ChildProfile, ChildGoal } from '../types/child';
 
 interface ChildProfileContextType {
@@ -37,29 +37,48 @@ export function ChildProfileProvider({ children }: { children: ReactNode }) {
     try {
       setLoading(true);
       setError(null);
+      console.log('ChildProfileContext Debug - Auth User ID:', user?.id);
 
-      // Fetch child profile
+      // Fetch child profile from child_profiles table (Source of Truth for Child App currently)
       const { data: profileData, error: profileError } = await supabase
         .from('child_profiles')
         .select('*')
         .eq('user_id', user.id)
         .single();
 
-      // PGRST116 = no rows returned (user doesn't have child profile)
-      // PGRST201/42P01 = table doesn't exist (not migrated yet)
-      if (profileError && profileError.code !== 'PGRST116' && profileError.code !== '42P01') {
+      // PGRST116 = no rows returned
+      if (profileError && profileError.code !== 'PGRST116') {
         console.warn('Child profile fetch error:', profileError);
-        // Don't throw - just log and continue
       }
 
-      setChildProfile(profileData);
+      // Map child_profiles row to ChildProfile interface
+      const mappedProfile = profileData ? {
+        ...profileData,
+        // Ensure display_name is present (might handle cases where it's missing in DB)
+        display_name: profileData.display_name || profileData.first_name || 'Freshie',
+        // Default avatar config if missing
+        avatar_config: profileData.avatar_config || {},
+        // Defaults for potentially missing fields
+        concerns: profileData.concerns || [],
+        environmental_factors: profileData.environmental_factors || [],
+        oiliness_zones: profileData.oiliness_zones || [],
+        texture_dislikes: profileData.texture_dislikes || [],
+        ingredient_exclusions: profileData.ingredient_exclusions || [],
+        brand_preferences: profileData.brand_preferences || [],
+        parent_guardrails: profileData.parent_guardrails || {},
+        wishlisting_enabled: profileData.wishlisting_enabled ?? true,
+        selfie_analysis_enabled: profileData.selfie_analysis_enabled ?? true,
+        routine_tracking_visible_to_parent: profileData.routine_tracking_visible_to_parent ?? true,
+      } : null;
+
+      setChildProfile(mappedProfile);
 
       // If child profile exists, fetch goals
-      if (profileData) {
+      if (mappedProfile) {
         const { data: goalsData, error: goalsError } = await supabase
           .from('child_goals')
           .select('*')
-          .eq('child_profile_id', profileData.id)
+          .eq('child_profile_id', mappedProfile.id)
           .eq('is_active', true)
           .order('priority', { ascending: false });
 
@@ -86,7 +105,7 @@ export function ChildProfileProvider({ children }: { children: ReactNode }) {
 
     try {
       const { data, error } = await supabase
-        .from('child_profiles')
+        .from('managed_children')
         .update({
           ...updates,
           updated_at: new Date().toISOString(),
@@ -96,7 +115,9 @@ export function ChildProfileProvider({ children }: { children: ReactNode }) {
         .single();
 
       if (error) throw error;
-      setChildProfile(data);
+
+      // Update local state with mapping
+      setChildProfile(prev => prev ? ({ ...prev, ...data }) : null);
     } catch (err: any) {
       console.error('Error updating child profile:', err);
       throw err;

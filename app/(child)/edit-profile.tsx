@@ -2,9 +2,9 @@ import { View, Text, ScrollView, StyleSheet, TextInput, TouchableOpacity, Alert,
 import { useRouter } from 'expo-router';
 import { useState, useEffect } from 'react';
 import { colors, radii, spacing } from '../../src/theme/tokens';
-import { useAuth } from '../../contexts/AuthContext';
-import { supabase } from '../../lib/supabase';
-import DetailPageHeader from '../../components/DetailPageHeader';
+import { useAuth } from '../../src/contexts/AuthContext';
+import { supabase } from '../../src/lib/supabase';
+import DetailPageHeader from '../../src/components/DetailPageHeader';
 import { User, MessageSquare, Save, X, Camera } from 'lucide-react-native';
 
 export default function EditProfileScreen() {

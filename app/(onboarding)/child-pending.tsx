@@ -3,7 +3,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { Clock, Mail, RefreshCw, ArrowLeft } from 'lucide-react-native';
-import { useAuth } from '../../contexts/AuthContext';
+import { useAuth } from '../../src/contexts/AuthContext';
 import { colors, spacing, radii } from '../../src/theme/tokens';
 
 export default function ChildPendingScreen() {

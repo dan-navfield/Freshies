@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  View, 
-  Text, 
-  ScrollView, 
-  TouchableOpacity, 
-  TextInput, 
+import {
+  View,
+  Text,
+  ScrollView,
+  TouchableOpacity,
+  TextInput,
   Alert,
   Modal,
   Image,
@@ -13,23 +13,24 @@ import {
   StyleSheet
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { 
-  ArrowLeft, Plus, Trash2, Clock, ChevronRight, 
+import {
+  ArrowLeft, Plus, Trash2, Clock, ChevronRight,
   Droplets, Sparkles, Sun, Shield, Droplet, Star,
   Info, Check, X, Search, Package, Timer, Zap, AlertTriangle
 } from 'lucide-react-native';
 import { colors, spacing, radii } from '../../src/theme/tokens';
 import { useChildProfile } from '../../src/contexts/ChildProfileContext';
-import { supabase } from '../../lib/supabase';
+import { useAuth } from '../../src/contexts/AuthContext';
+import { supabase } from '../../src/lib/supabase';
 import { routineService, CustomRoutine, RoutineStepData } from '../../src/services/routineService';
 import { routineTemplateService, RoutineStepTemplate } from '../../src/services/routineTemplateService';
-import DetailPageHeader from '../../components/DetailPageHeader';
-import GamificationBand from '../../components/GamificationBand';
-import ProductSelectorModal from '../../components/ProductSelectorModal';
+import DetailPageHeader from '../../src/components/DetailPageHeader';
+import GamificationBand from '../../src/components/GamificationBand';
+import ProductSelectorModal from '../../src/components/ProductSelectorModal';
 
 const { width } = Dimensions.get('window');
 
-type Segment = 'morning' | 'evening';
+type Segment = 'morning' | 'afternoon' | 'evening';
 type StepType = 'cleanser' | 'moisturizer' | 'sunscreen' | 'treatment' | 'serum';
 
 interface RoutineStep {
@@ -146,14 +147,16 @@ const STEP_TEMPLATES: Record<StepType, StepTemplate> = {
 export default function EnhancedRoutineBuilder() {
   const router = useRouter();
   const { childProfile } = useChildProfile();
+  const { user } = useAuth();
   const params = useLocalSearchParams();
-  
-  const segment = (params.segment as Segment) || 'morning';
+
+  const segmentParam = (params.segment as Segment) || 'morning';
   const routineId = params.routineId as string;
   const suggestedStepsParam = params.suggestedSteps as string;
-  
+
+  const [selectedSegment, setSelectedSegment] = useState<Segment>(segmentParam);
   const [steps, setSteps] = useState<RoutineStep[]>([]);
-  const [routineName, setRoutineName] = useState(`${segment.charAt(0).toUpperCase() + segment.slice(1)} Routine`);
+  const [routineName, setRoutineName] = useState(`${segmentParam.charAt(0).toUpperCase() + segmentParam.slice(1)} Routine`);
   const [showStepSelector, setShowStepSelector] = useState(false);
   const [showProductRecommendations, setShowProductRecommendations] = useState(false);
   const [selectedStepIndex, setSelectedStepIndex] = useState<number | null>(null);
@@ -165,7 +168,7 @@ export default function EnhancedRoutineBuilder() {
   const [dbTemplates, setDbTemplates] = useState<RoutineStepTemplate[]>([]);
   const [templatesLoading, setTemplatesLoading] = useState(true);
   const [pendingSuggestedSteps, setPendingSuggestedSteps] = useState<RoutineStep[]>([]);
-  
+
   const fadeAnim = useState(new Animated.Value(1))[0]; // Start at 1 so content is visible
 
   useEffect(() => {
@@ -176,13 +179,13 @@ export default function EnhancedRoutineBuilder() {
     console.log('=== Routine Builder Mounted ===');
     console.log('routineId:', routineId);
     console.log('suggestedStepsParam:', suggestedStepsParam ? 'YES' : 'NO');
-    console.log('segment:', segment);
-    
+    console.log('segment:', selectedSegment);
+
     // Process suggested steps first (if any)
     if (suggestedStepsParam) {
       loadRoutineSteps(); // This will set pendingSuggestedSteps
     }
-    
+
     // Load existing routine if we have a routineId (regardless of suggested steps)
     if (routineId) {
       console.log('Will load existing routine...');
@@ -191,14 +194,14 @@ export default function EnhancedRoutineBuilder() {
       // Only set empty if no suggested steps and no routine
       loadRoutineSteps();
     }
-    
+
     loadRecommendedProducts();
   }, [routineId, suggestedStepsParam]);
 
   // Append pending suggested steps when they become available
   // Use a ref to track if we've loaded the existing routine
   const [hasLoadedExisting, setHasLoadedExisting] = useState(false);
-  
+
   useEffect(() => {
     if (pendingSuggestedSteps.length > 0) {
       console.log('=== Pending Steps Detected ===');
@@ -206,13 +209,13 @@ export default function EnhancedRoutineBuilder() {
       console.log('Current steps:', steps.length);
       console.log('Has routineId:', !!routineId);
       console.log('Has loaded existing:', hasLoadedExisting);
-      
+
       if (routineId && !hasLoadedExisting) {
         // Waiting for existing routine to load
         console.log('Waiting for existing routine to load...');
         return;
       }
-      
+
       if (routineId) {
         // Existing routine loaded (even if it has 0 steps), append to it
         console.log('Appending to existing routine (current steps:', steps.length, ')');
@@ -230,10 +233,11 @@ export default function EnhancedRoutineBuilder() {
   const loadTemplates = async () => {
     try {
       setTemplatesLoading(true);
-      const templates = await routineTemplateService.getTemplates({
-        timeOfDay: segment as any
+      const result = await routineTemplateService.getTemplates({
+        timeOfDay: selectedSegment as any
       });
-      setDbTemplates(templates);
+      if (!result.ok) throw result.error;
+      setDbTemplates(result.value);
     } catch (error) {
       console.error('Error loading templates:', error);
     } finally {
@@ -245,13 +249,13 @@ export default function EnhancedRoutineBuilder() {
     console.log('=== loadRoutineSteps called ===');
     console.log('routineId:', routineId);
     console.log('suggestedStepsParam exists:', !!suggestedStepsParam);
-    
+
     // Check if we have suggested steps from Guided Mode
     if (suggestedStepsParam) {
       try {
         const suggestedSteps = JSON.parse(suggestedStepsParam);
         console.log('Parsed suggested steps:', suggestedSteps.length, 'steps');
-        
+
         // Convert suggested steps to routine steps
         const newSteps = suggestedSteps.map((step: any, index: number) => ({
           id: `temp-${Date.now()}-${index}`,
@@ -261,9 +265,9 @@ export default function EnhancedRoutineBuilder() {
           instructions: Array.isArray(step.instructions) ? step.instructions : [step.instructions || ''],
           tips: step.tips || step.tip || ''
         }));
-        
+
         console.log('Converted to', newSteps.length, 'routine steps');
-        
+
         // If we have a routineId, we're adding to an existing routine
         // Otherwise, start fresh with these steps
         if (routineId) {
@@ -291,54 +295,78 @@ export default function EnhancedRoutineBuilder() {
     console.log('=== loadExistingRoutine called ===');
     console.log('routineId:', routineId);
     console.log('childProfile?.id:', childProfile?.id);
-    
+
     if (!routineId || !childProfile?.id) {
       console.log('Missing routineId or childProfile, skipping');
       return;
     }
-    
+
     try {
       // Load routine from database
       console.log('Fetching routines from database...');
-      const routines = await routineService.getRoutines(childProfile.id);
+      const result = await routineService.getRoutines(childProfile.id);
+      if (!result.ok) throw result.error;
+
+      const routines = result.value;
       console.log('Found', routines.length, 'routines');
-      
+
       const routine = routines.find(r => r.id === routineId);
       console.log('Found matching routine:', !!routine);
-      
+
       if (routine && routine.steps) {
         console.log('Routine has', routine.steps.length, 'steps');
-        
+
         // Set the routine name and active days
         setRoutineName(routine.name);
         setActiveDays(routine.active_days || [0, 1, 2, 3, 4, 5, 6]);
-        
+
         // Convert RoutineStepData back to local step format
         const loadedSteps = await Promise.all(routine.steps.map(async (step) => {
           let product = undefined;
-          
+
           // Load product data if product_id exists
           if (step.product_id) {
             try {
-              const { data: productData } = await supabase
-                .from('scanned_products')
+              // Try fetching from Shelf Items first (preferred)
+              const { data: shelfData } = await supabase
+                .from('shelf_items')
                 .select('*')
                 .eq('id', step.product_id)
                 .single();
-              
-              if (productData) {
+
+              if (shelfData) {
                 product = {
-                  id: productData.id,
-                  name: productData.product_name,
-                  brand: productData.brand_name || 'Unknown Brand',
-                  image: productData.image_url,
+                  id: shelfData.id,
+                  name: shelfData.product_name,
+                  brand: shelfData.product_brand || 'Unknown Brand',
+                  image: shelfData.product_image_url,
+                  fresh_score: 85, // Default score or fetch if available
+                  benefits: 'Maintained' // Default
                 };
+              } else {
+                // Fallback to scanned_products for backward compatibility
+                const { data: scannedData } = await supabase
+                  .from('scanned_products')
+                  .select('*')
+                  .eq('id', step.product_id)
+                  .single();
+
+                if (scannedData) {
+                  product = {
+                    id: scannedData.id,
+                    name: scannedData.product_name,
+                    brand: scannedData.brand_name || 'Unknown',
+                    image: scannedData.image_url,
+                    fresh_score: 85,
+                    benefits: 'Archived'
+                  };
+                }
               }
             } catch (error) {
               console.error('Error loading product:', error);
             }
           }
-          
+
           return {
             id: step.id,
             type: step.type,
@@ -350,7 +378,7 @@ export default function EnhancedRoutineBuilder() {
             tips: step.tips || ''
           };
         }));
-        
+
         console.log('Setting', loadedSteps.length, 'loaded steps');
         setSteps(loadedSteps);
         setHasLoadedExisting(true); // Mark as loaded
@@ -372,9 +400,9 @@ export default function EnhancedRoutineBuilder() {
         .select('*')
         .eq('is_approved', true)
         .limit(10);
-      
+
       if (error) throw error;
-      
+
       if (products && products.length > 0) {
         setRecommendedProducts(products.map(p => ({
           id: p.id,
@@ -431,10 +459,10 @@ export default function EnhancedRoutineBuilder() {
       instructions: template.defaultInstructions,
       tips: template.tips
     };
-    
+
     setSteps([...steps, newStep]);
     setShowStepSelector(false);
-    
+
     // Animate in
     Animated.spring(fadeAnim, {
       toValue: 1,
@@ -450,8 +478,8 @@ export default function EnhancedRoutineBuilder() {
       'Are you sure you want to remove this step?',
       [
         { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'Remove', 
+        {
+          text: 'Remove',
           style: 'destructive',
           onPress: () => {
             const newSteps = steps.filter((_, i) => i !== index);
@@ -464,16 +492,18 @@ export default function EnhancedRoutineBuilder() {
 
   const selectProduct = (product: any) => {
     if (selectedStepIndex === null) return;
-    
+
     const updatedSteps = [...steps];
     updatedSteps[selectedStepIndex] = {
       ...updatedSteps[selectedStepIndex],
       product_id: product.id,
       product: {
         id: product.id,
-        name: product.product_name,
-        brand: product.brand_name || 'Unknown Brand',
-        image: product.image_url,
+        name: product.product_name || product.name,
+        brand: product.brand_name || product.brand || 'Unknown Brand',
+        image: product.image_url || product.image,
+        fresh_score: product.fresh_score || 85,
+        benefits: product.benefits || (product.key_ingredients && product.key_ingredients[0]) || 'Gentle'
       }
     };
     setSteps(updatedSteps);
@@ -497,7 +527,7 @@ export default function EnhancedRoutineBuilder() {
       if (routineId) {
         // Update existing routine
         const totalDuration = steps.reduce((sum, step) => sum + step.duration, 0);
-        
+
         // Convert steps to RoutineStepData format
         const routineSteps: RoutineStepData[] = steps.map((step, index) => ({
           id: `step-${Date.now()}-${index}`,
@@ -510,10 +540,11 @@ export default function EnhancedRoutineBuilder() {
           tips: step.tips
         }));
 
-        const name = routineName?.trim() || `My ${segment.charAt(0).toUpperCase() + segment.slice(1)} Routine`;
-        
-        const updated = await routineService.updateRoutine(routineId, {
+        const name = routineName?.trim() || `My ${selectedSegment.charAt(0).toUpperCase() + selectedSegment.slice(1)} Routine`;
+
+        const result = await routineService.updateRoutine(routineId, {
           name,
+          segment: selectedSegment,
           steps: routineSteps,
           total_duration: totalDuration,
           active_days: activeDays,
@@ -521,19 +552,22 @@ export default function EnhancedRoutineBuilder() {
           is_active: !saveAsDraft // Set is_active to true when publishing
         });
 
-        if (updated) {
+        if (result.ok) {
           setIsSaved(true);
-          // Reset saved state after 2 seconds
-          setTimeout(() => setIsSaved(false), 2000);
+          // Navigate back to routine library after showing saved state
+          setTimeout(() => {
+            router.push('/(child)/(tabs)/routine');
+          }, 1500);
         } else {
-          Alert.alert('Error', 'Failed to update routine');
+          console.error('Failed to update routine:', result.error);
+          Alert.alert('Error', `Failed to update routine: ${result.error?.message || 'Unknown error'}`);
         }
       } else {
         // Save routine with the name from the input field
-        const name = routineName?.trim() || `My ${segment.charAt(0).toUpperCase() + segment.slice(1)} Routine`;
-        
+        const name = routineName?.trim() || `My ${selectedSegment.charAt(0).toUpperCase() + selectedSegment.slice(1)} Routine`;
+
         const totalDuration = steps.reduce((sum, step) => sum + step.duration, 0);
-        
+
         // Convert steps to RoutineStepData format
         const routineSteps: RoutineStepData[] = steps.map((step, index) => ({
           id: `step-${Date.now()}-${index}`,
@@ -547,11 +581,27 @@ export default function EnhancedRoutineBuilder() {
         }));
 
         // Create the routine
-        const newRoutine = await routineService.createRoutine({
-          user_id: childProfile.user_id || '',
+        // Use childProfile.user_id if available, otherwise fall back to authenticated user
+        const userId = childProfile.user_id || user?.id || '';
+
+        console.log('Creating routine with:', {
+          userId,
+          childProfileId: childProfile.id,
+          name,
+          segment: selectedSegment,
+          stepsCount: routineSteps.length
+        });
+
+        if (!userId) {
+          Alert.alert('Error', 'User ID not found. Please try logging in again.');
+          return;
+        }
+
+        const result = await routineService.createRoutine({
+          user_id: userId,
           child_profile_id: childProfile.id,
           name,
-          segment,
+          segment: selectedSegment,
           steps: routineSteps,
           total_duration: totalDuration,
           is_active: !saveAsDraft, // Set is_active to true when publishing
@@ -560,27 +610,28 @@ export default function EnhancedRoutineBuilder() {
           status: saveAsDraft ? 'draft' : 'active'
         });
 
-        if (newRoutine) {
+        if (result.ok) {
           setIsSaved(true);
           // Navigate back after showing saved state
           setTimeout(() => {
-            router.push('/(child)/routines');
+            router.push('/(child)/(tabs)/routine');
           }, 1500);
         } else {
-          Alert.alert('Error', 'Failed to save routine');
+          console.error('Failed to create routine:', result.error);
+          Alert.alert('Error', `Failed to save routine: ${result.error?.message || 'Unknown error'}`);
         }
       }
     } catch (error) {
       console.error('Error saving routine:', error);
-      Alert.alert('Error', 'Failed to save routine');
+      Alert.alert('Error', `Failed to save routine: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   };
 
   const startGuidedRoutine = () => {
     router.push({
       pathname: '/(child)/guided-routine',
-      params: { 
-        segment,
+      params: {
+        segment: selectedSegment,
         routineId: routineId || '', // Pass existing routine ID if editing
         routineName: routineName || ''
       }
@@ -589,32 +640,32 @@ export default function EnhancedRoutineBuilder() {
 
   return (
     <View style={styles.container}>
-      <DetailPageHeader 
+      <DetailPageHeader
         title={routineId ? 'Edit Routine' : 'Build Your Routine'}
         subtitle="Create your perfect routine"
       />
-      
+
       <GamificationBand />
 
       {/* Action Bar */}
       <View style={styles.actionBar}>
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.guidedButton}
           onPress={startGuidedRoutine}
         >
           <Timer size={16} color={colors.white} />
           <Text style={styles.guidedButtonText}>Guided Mode</Text>
         </TouchableOpacity>
-        
+
         <View style={styles.saveButtonsContainer}>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.draftButton}
             onPress={() => saveRoutine(true)}
           >
             <Text style={styles.draftButtonText}>Draft</Text>
           </TouchableOpacity>
-          
-          <TouchableOpacity 
+
+          <TouchableOpacity
             style={[styles.publishButton, isSaved && styles.publishButtonSaved]}
             onPress={() => saveRoutine(false)}
             disabled={isSaved}
@@ -627,7 +678,7 @@ export default function EnhancedRoutineBuilder() {
         </View>
       </View>
 
-      <ScrollView 
+      <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
@@ -642,6 +693,36 @@ export default function EnhancedRoutineBuilder() {
             placeholder="Enter routine name"
             placeholderTextColor={colors.charcoal + '60'}
           />
+        </View>
+
+        {/* Time of Day Selector */}
+        <View style={styles.activeDaysContainer}>
+          <Text style={styles.activeDaysLabel}>Time of day</Text>
+          <View style={styles.segmentSelectorRow}>
+            {(['morning', 'afternoon', 'evening'] as Segment[]).map((seg) => {
+              const isActive = selectedSegment === seg;
+              const icons: Record<Segment, string> = { morning: '☀️', afternoon: '🌤️', evening: '🌙' };
+              const labels: Record<Segment, string> = { morning: 'Morning', afternoon: 'Afternoon', evening: 'Evening' };
+              return (
+                <TouchableOpacity
+                  key={seg}
+                  style={[
+                    styles.segmentButton,
+                    isActive && styles.segmentButtonActive
+                  ]}
+                  onPress={() => setSelectedSegment(seg)}
+                >
+                  <Text style={styles.segmentIcon}>{icons[seg]}</Text>
+                  <Text style={[
+                    styles.segmentLabel,
+                    isActive && styles.segmentLabelActive
+                  ]}>
+                    {labels[seg]}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
         </View>
 
         {/* Active Days Selector */}
@@ -681,13 +762,13 @@ export default function EnhancedRoutineBuilder() {
         {steps.map((step, index) => {
           const template = STEP_TEMPLATES[step.type] || STEP_TEMPLATES.cleanser; // Fallback to cleanser if type not found
           const Icon = template.icon;
-          
+
           return (
-            <Animated.View 
+            <Animated.View
               key={step.id}
               style={[
                 styles.stepCard,
-                { 
+                {
                   opacity: fadeAnim,
                   transform: [{ scale: fadeAnim }]
                 }
@@ -704,7 +785,7 @@ export default function EnhancedRoutineBuilder() {
                     <Text style={styles.stepTitle}>{step.title}</Text>
                   </View>
                 </View>
-                
+
                 <TouchableOpacity onPress={() => removeStep(index)}>
                   <Trash2 size={20} color={colors.charcoal} />
                 </TouchableOpacity>
@@ -721,7 +802,7 @@ export default function EnhancedRoutineBuilder() {
                 {step.product ? (
                   <View style={styles.selectedProduct}>
                     {step.product.image && (
-                      <Image 
+                      <Image
                         source={{ uri: step.product.image }}
                         style={styles.productImage}
                       />
@@ -808,28 +889,183 @@ export default function EnhancedRoutineBuilder() {
                 <X size={24} color={colors.charcoal} />
               </TouchableOpacity>
             </View>
-            
-            {Object.values(STEP_TEMPLATES).map((template) => {
-              const Icon = template.icon;
-              return (
+
+            <ScrollView showsVerticalScrollIndicator={false} style={{ maxHeight: 500 }}>
+              {/* Main Step Types */}
+              {Object.values(STEP_TEMPLATES).map((template) => {
+                const Icon = template.icon;
+                return (
+                  <TouchableOpacity
+                    key={template.type}
+                    style={styles.stepOption}
+                    onPress={() => addStep(template.type)}
+                  >
+                    <View style={[styles.stepOptionIcon, { backgroundColor: template.color + '20' }]}>
+                      <Icon size={24} color={template.color} />
+                    </View>
+                    <View style={styles.stepOptionInfo}>
+                      <Text style={styles.stepOptionTitle}>{template.title}</Text>
+                      <Text style={styles.stepOptionDuration}>
+                        ~{Math.floor(template.defaultDuration / 60)} min
+                      </Text>
+                    </View>
+                    <ChevronRight size={20} color={colors.charcoal} />
+                  </TouchableOpacity>
+                );
+              })}
+
+              {/* More Options Section */}
+              <View style={{ marginTop: spacing[4], paddingTop: spacing[3], borderTopWidth: 1, borderTopColor: '#E5E7EB' }}>
+                <Text style={{ fontSize: 14, fontWeight: '600', color: colors.charcoal + '80', marginBottom: spacing[3], marginLeft: spacing[2] }}>More Options</Text>
+
+                {/* Toner */}
                 <TouchableOpacity
-                  key={template.type}
                   style={styles.stepOption}
-                  onPress={() => addStep(template.type)}
+                  onPress={() => {
+                    const newStep: RoutineStep = {
+                      id: `temp-${Date.now()}`,
+                      type: 'serum',
+                      title: 'Apply Toner',
+                      duration: 30,
+                      instructions: ['Pour a small amount onto a cotton pad', 'Gently swipe across face', 'Let it absorb naturally'],
+                      tips: '💡 Toner helps balance your skin\'s pH!'
+                    };
+                    setSteps([...steps, newStep]);
+                    setShowStepSelector(false);
+                  }}
                 >
-                  <View style={[styles.stepOptionIcon, { backgroundColor: template.color + '20' }]}>
-                    <Icon size={24} color={template.color} />
+                  <View style={[styles.stepOptionIcon, { backgroundColor: '#E0F7FA' }]}>
+                    <Droplet size={24} color="#00BCD4" />
                   </View>
                   <View style={styles.stepOptionInfo}>
-                    <Text style={styles.stepOptionTitle}>{template.title}</Text>
-                    <Text style={styles.stepOptionDuration}>
-                      ~{Math.floor(template.defaultDuration / 60)} min
-                    </Text>
+                    <Text style={styles.stepOptionTitle}>Apply Toner</Text>
+                    <Text style={styles.stepOptionDuration}>~0 min</Text>
                   </View>
                   <ChevronRight size={20} color={colors.charcoal} />
                 </TouchableOpacity>
-              );
-            })}
+
+                {/* Eye Cream */}
+                <TouchableOpacity
+                  style={styles.stepOption}
+                  onPress={() => {
+                    const newStep: RoutineStep = {
+                      id: `temp-${Date.now()}`,
+                      type: 'treatment',
+                      title: 'Apply Eye Cream',
+                      duration: 20,
+                      instructions: ['Use a rice grain amount', 'Gently dab around eye area', 'Use ring finger for light pressure'],
+                      tips: '💡 Be gentle around the delicate eye area!'
+                    };
+                    setSteps([...steps, newStep]);
+                    setShowStepSelector(false);
+                  }}
+                >
+                  <View style={[styles.stepOptionIcon, { backgroundColor: '#FCE4EC' }]}>
+                    <Star size={24} color="#E91E63" />
+                  </View>
+                  <View style={styles.stepOptionInfo}>
+                    <Text style={styles.stepOptionTitle}>Apply Eye Cream</Text>
+                    <Text style={styles.stepOptionDuration}>~0 min</Text>
+                  </View>
+                  <ChevronRight size={20} color={colors.charcoal} />
+                </TouchableOpacity>
+
+                {/* Face Mask */}
+                <TouchableOpacity
+                  style={styles.stepOption}
+                  onPress={() => {
+                    const newStep: RoutineStep = {
+                      id: `temp-${Date.now()}`,
+                      type: 'treatment',
+                      title: 'Apply Face Mask',
+                      duration: 600,
+                      instructions: ['Apply an even layer to clean face', 'Avoid eye and lip area', 'Leave on for 10-15 minutes', 'Rinse off with lukewarm water'],
+                      tips: '💡 Great for a weekly treat!'
+                    };
+                    setSteps([...steps, newStep]);
+                    setShowStepSelector(false);
+                  }}
+                >
+                  <View style={[styles.stepOptionIcon, { backgroundColor: '#F3E5F5' }]}>
+                    <Sparkles size={24} color="#9C27B0" />
+                  </View>
+                  <View style={styles.stepOptionInfo}>
+                    <Text style={styles.stepOptionTitle}>Apply Face Mask</Text>
+                    <Text style={styles.stepOptionDuration}>~10 min</Text>
+                  </View>
+                  <ChevronRight size={20} color={colors.charcoal} />
+                </TouchableOpacity>
+
+                {/* Exfoliate */}
+                <TouchableOpacity
+                  style={styles.stepOption}
+                  onPress={() => {
+                    const newStep: RoutineStep = {
+                      id: `temp-${Date.now()}`,
+                      type: 'cleanser',
+                      title: 'Exfoliate',
+                      duration: 60,
+                      instructions: ['Apply to damp skin', 'Gently massage in circular motions', 'Focus on T-zone', 'Rinse thoroughly'],
+                      tips: '💡 Only exfoliate 1-2 times per week!'
+                    };
+                    setSteps([...steps, newStep]);
+                    setShowStepSelector(false);
+                  }}
+                >
+                  <View style={[styles.stepOptionIcon, { backgroundColor: '#FFF3E0' }]}>
+                    <Sun size={24} color="#FF9800" />
+                  </View>
+                  <View style={styles.stepOptionInfo}>
+                    <Text style={styles.stepOptionTitle}>Exfoliate</Text>
+                    <Text style={styles.stepOptionDuration}>~1 min</Text>
+                  </View>
+                  <ChevronRight size={20} color={colors.charcoal} />
+                </TouchableOpacity>
+              </View>
+
+              {/* Add Custom Step */}
+              <TouchableOpacity
+                style={[styles.stepOption, { marginTop: spacing[4], backgroundColor: colors.purple + '10', borderWidth: 2, borderColor: colors.purple, borderStyle: 'dashed' }]}
+                onPress={() => {
+                  Alert.prompt(
+                    'Add Custom Step',
+                    'Enter a name for your custom step:',
+                    [
+                      { text: 'Cancel', style: 'cancel' },
+                      {
+                        text: 'Add',
+                        onPress: (stepName: string | undefined) => {
+                          if (stepName && stepName.trim()) {
+                            const newStep: RoutineStep = {
+                              id: `temp-${Date.now()}`,
+                              type: 'treatment',
+                              title: stepName.trim(),
+                              duration: 60,
+                              instructions: ['Complete this step as needed'],
+                              tips: ''
+                            };
+                            setSteps([...steps, newStep]);
+                            setShowStepSelector(false);
+                          }
+                        }
+                      }
+                    ],
+                    'plain-text',
+                    '',
+                    'default'
+                  );
+                }}
+              >
+                <View style={[styles.stepOptionIcon, { backgroundColor: colors.purple + '20' }]}>
+                  <Plus size={24} color={colors.purple} />
+                </View>
+                <View style={styles.stepOptionInfo}>
+                  <Text style={[styles.stepOptionTitle, { color: colors.purple }]}>Add Custom Step</Text>
+                  <Text style={styles.stepOptionDuration}>Create your own</Text>
+                </View>
+                <ChevronRight size={20} color={colors.purple} />
+              </TouchableOpacity>
+            </ScrollView>
           </View>
         </View>
       </Modal>
@@ -870,16 +1106,16 @@ export default function EnhancedRoutineBuilder() {
 
               <View style={{ backgroundColor: colors.white, borderRadius: 20, padding: 30, alignItems: 'center' }}>
                 <View style={{ width: 80, height: 80, borderRadius: 40, backgroundColor: STEP_TEMPLATES[steps[currentGuidedStep].type].color + '20', alignItems: 'center', justifyContent: 'center', marginBottom: 20 }}>
-                  {React.createElement(STEP_TEMPLATES[steps[currentGuidedStep].type].icon, { 
-                    size: 40, 
-                    color: STEP_TEMPLATES[steps[currentGuidedStep].type].color 
+                  {React.createElement(STEP_TEMPLATES[steps[currentGuidedStep].type].icon, {
+                    size: 40,
+                    color: STEP_TEMPLATES[steps[currentGuidedStep].type].color
                   })}
                 </View>
-                
+
                 <Text style={{ fontSize: 24, fontWeight: '600', color: colors.charcoal, marginBottom: 20 }}>
                   {steps[currentGuidedStep].title}
                 </Text>
-                
+
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 30 }}>
                   <Timer size={24} color={colors.purple} />
                   <Text style={{ fontSize: 32, fontWeight: '600', color: colors.purple }}>
@@ -908,23 +1144,23 @@ export default function EnhancedRoutineBuilder() {
 
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 30, gap: 12 }}>
                 {currentGuidedStep > 0 && (
-                  <TouchableOpacity 
+                  <TouchableOpacity
                     style={{ flex: 1, backgroundColor: 'rgba(255, 255, 255, 0.2)', paddingVertical: 16, borderRadius: 12, alignItems: 'center' }}
                     onPress={() => setCurrentGuidedStep(currentGuidedStep - 1)}
                   >
                     <Text style={{ color: colors.white, fontSize: 16, fontWeight: '600' }}>Previous</Text>
                   </TouchableOpacity>
                 )}
-                
+
                 {currentGuidedStep < steps.length - 1 ? (
-                  <TouchableOpacity 
+                  <TouchableOpacity
                     style={{ flex: 1, backgroundColor: colors.mint, paddingVertical: 16, borderRadius: 12, alignItems: 'center' }}
                     onPress={() => setCurrentGuidedStep(currentGuidedStep + 1)}
                   >
                     <Text style={{ color: colors.charcoal, fontSize: 16, fontWeight: '600' }}>Next Step</Text>
                   </TouchableOpacity>
                 ) : (
-                  <TouchableOpacity 
+                  <TouchableOpacity
                     style={{ flex: 1, backgroundColor: colors.yellow, paddingVertical: 16, borderRadius: 12, alignItems: 'center' }}
                     onPress={() => {
                       Alert.alert('Routine Complete! 🎉', 'Great job! You earned 100 XP!');
@@ -1351,5 +1587,39 @@ const styles = StyleSheet.create({
     backgroundColor: colors.orange + '20',
     borderRadius: radii.sm,
     padding: 2,
+  },
+  // Segment Selector Styles
+  segmentSelectorRow: {
+    flexDirection: 'row' as const,
+    gap: spacing[3],
+  },
+  segmentButton: {
+    flex: 1,
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
+    paddingVertical: spacing[3],
+    paddingHorizontal: spacing[2],
+    backgroundColor: colors.white,
+    borderRadius: radii.lg,
+    borderWidth: 2,
+    borderColor: colors.mist,
+    gap: spacing[2],
+  },
+  segmentButtonActive: {
+    borderColor: colors.purple,
+    backgroundColor: colors.purple + '10',
+  },
+  segmentIcon: {
+    fontSize: 18,
+  },
+  segmentLabel: {
+    fontSize: 14,
+    fontWeight: '500' as const,
+    color: colors.charcoal,
+  },
+  segmentLabelActive: {
+    color: colors.purple,
+    fontWeight: '600' as const,
   },
 });

@@ -12,9 +12,9 @@ import {
 import { useRouter } from 'expo-router';
 import { Camera, Image as ImageIcon, Trash2, Check, X } from 'lucide-react-native';
 import { colors, spacing, radii } from '../../src/theme/tokens';
-import { useAuth } from '../../contexts/AuthContext';
-import { supabase } from '../../lib/supabase';
-import PageHeader from '../../components/PageHeader';
+import { useAuth } from '../../src/contexts/AuthContext';
+import { supabase } from '../../src/lib/supabase';
+import PageHeader from '../../src/components/PageHeader';
 import {
   uploadAvatar,
   pickImageFromCamera,

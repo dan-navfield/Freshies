@@ -9,8 +9,10 @@ import { lookupProduct, searchProducts } from '../../src/services/api';
 import { scanBarcodeFromImage } from '../../src/services/barcode/imageScanner';
 import { extractTextFromImage, createSearchQueryFromIngredients, extractProductName } from '../../src/services/ocr/ingredientScanner';
 import { scanProduct, submitScanFeedback, uploadImage } from '../../src/services/freshiesBackend';
+import { identifyProductFromImage } from '../../src/services/ai/aiVisionProductIdentifier';
 import ProductSearchModal from '../../src/components/ProductSearchModal';
-import { useAuth } from '../../contexts/AuthContext';
+import ScanProgressOverlay, { ScanStep } from '../../src/components/ScanProgressOverlay';
+import { useAuth } from '../../src/contexts/AuthContext';
 import ChildScanScreen from '../(child)/(tabs)/scan';
 
 const { width, height } = Dimensions.get('window');
@@ -25,6 +27,22 @@ export default function ScanScreen() {
   const [loadingMessage, setLoadingMessage] = useState('Analyzing...');
   const [showHeader, setShowHeader] = useState(true);
   const [showSearchModal, setShowSearchModal] = useState(false);
+  const [scanSteps, setScanSteps] = useState<ScanStep[]>([
+    { id: 'barcode', label: 'Checking for barcode', status: 'pending' },
+    { id: 'database', label: 'Searching databases', status: 'pending' },
+    { id: 'ocr', label: 'Reading product label', status: 'pending' },
+    { id: 'name_match', label: 'Matching product', status: 'pending' },
+    { id: 'ai', label: 'AI analyzing image', status: 'pending' },
+    { id: 'details', label: 'Loading details', status: 'pending' },
+  ]);
+
+  const updateStep = (stepId: string, status: ScanStep['status']) => {
+    setScanSteps(prev => prev.map(s => s.id === stepId ? { ...s, status } : s));
+  };
+
+  const resetSteps = () => {
+    setScanSteps(prev => prev.map(s => ({ ...s, status: 'pending' })));
+  };
 
   // If user is a child, show the child scan screen
   if (userRole === 'child') {
@@ -46,7 +64,7 @@ export default function ScanScreen() {
 
     try {
       console.log('📦 Scanned barcode:', data);
-      
+
       // Use Freshies backend for comprehensive analysis
       const scanResult = await scanProduct({
         barcodeHint: data,
@@ -57,7 +75,7 @@ export default function ScanScreen() {
           allergies: [],
         },
       });
-      
+
       // Navigate to product result screen with full analysis
       router.push({
         pathname: '/product-result',
@@ -77,7 +95,7 @@ export default function ScanScreen() {
       });
     } catch (error) {
       console.error('Error processing barcode:', error);
-      
+
       // Fallback to old API if backend is down
       try {
         const result = await lookupProduct(data);
@@ -94,20 +112,14 @@ export default function ScanScreen() {
             },
           });
         } else {
-          Alert.alert(
-            'Product Not Found',
-            `We haven't seen this product before (barcode: ${data}). Would you like to help us add it?`,
-            [
-              { text: 'Cancel', style: 'cancel', onPress: () => setScanned(false) },
-              { 
-                text: 'Add Product', 
-                onPress: () => {
-                  Alert.alert('Coming Soon', 'Manual product entry will be available soon!');
-                  setScanned(false);
-                }
-              },
-            ]
-          );
+          // Navigate to Product Not Found flow
+          setScanned(false);
+          router.push({
+            pathname: '/product-not-found',
+            params: {
+              barcode: data,
+            },
+          });
         }
       } catch (fallbackError) {
         Alert.alert(
@@ -168,9 +180,15 @@ export default function ScanScreen() {
 
   const handleUploadFromLibrary = async () => {
     try {
-      // Request media library permissions
-      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      
+      // Check cached permission status first (faster)
+      let { status } = await ImagePicker.getMediaLibraryPermissionsAsync();
+
+      // Only request if not already granted
+      if (status !== 'granted') {
+        const result = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        status = result.status;
+      }
+
       if (status !== 'granted') {
         Alert.alert(
           'Permission Required',
@@ -190,88 +208,245 @@ export default function ScanScreen() {
       if (!result.canceled && result.assets[0]) {
         const imageUri = result.assets[0].uri;
         console.log('📷 Selected image:', imageUri);
-        
+
         setLoading(true);
-        
+        resetSteps();
+
         try {
-          // Upload image to backend first
-          setLoadingMessage('Uploading image...');
-          const { imageUrl } = await uploadImage(imageUri);
-          console.log('✅ Image uploaded:', imageUrl);
-          
-          // Try multiple methods to identify the product
-          console.log('🔍 Analyzing image...');
-          
-          // 1. Try barcode detection first
-          setLoadingMessage('Scanning for barcode...');
+          // Step 1: Try barcode detection with Cloud Vision
+          updateStep('barcode', 'active');
           let barcode: string | undefined;
           try {
             const barcodeResult = await scanBarcodeFromImage(imageUri);
             if (barcodeResult.found && barcodeResult.data) {
               barcode = barcodeResult.data;
               console.log('✅ Found barcode:', barcode);
+              updateStep('barcode', 'complete');
+            } else {
+              updateStep('barcode', 'skipped');
             }
           } catch (e) {
-            console.log('No barcode found, trying AI...');
+            console.log('ℹ️ No barcode found in image');
+            updateStep('barcode', 'skipped');
           }
 
-          // 2. Send to backend for comprehensive analysis (with uploaded image URL)
-          setLoadingMessage('Analyzing with AI...');
-          const scanResult = await scanProduct({
-            imageUrl, // Send public HTTP URL
-            barcodeHint: barcode,
-            childProfile: {
-              age: 8,
-              skinType: 'normal',
-              allergies: [],
-            },
-          });
+          // Step 2: If barcode found, lookup product in databases
+          if (barcode) {
+            updateStep('database', 'active');
+            console.log('🔍 Looking up barcode:', barcode);
+            const productResult = await lookupProduct(barcode);
 
-          // Check if we got useful results
-          if (!scanResult.product || scanResult.scoring.rating === 'UNKNOWN' || scanResult.ingredients.normalised.length === 0) {
-            Alert.alert(
-              'Product Not Found',
-              'We couldn\'t find this product in our database or extract ingredients. Please try:\n\n• Scanning the back of the package where ingredients are listed\n• Taking a clearer photo with good lighting\n• Ensuring the barcode is visible\n• Trying a different angle',
-              [
-                { text: 'Try Again', onPress: handleUploadFromLibrary },
-                { text: 'Cancel', style: 'cancel' }
-              ]
-            );
+            if (productResult.found && productResult.product) {
+              updateStep('database', 'complete');
+              updateStep('details', 'complete');
+              console.log('✅ Product found:', productResult.product.name);
+              router.push({
+                pathname: '/product-result',
+                params: {
+                  barcode: barcode,
+                  name: productResult.product.name,
+                  brand: productResult.product.brand,
+                  category: productResult.product.category,
+                  imageUrl: productResult.product.imageUrl || imageUri,
+                  ingredientsText: productResult.product.ingredientsText || '',
+                  sourceType: 'database',
+                },
+              });
+              setLoading(false);
+              return;
+            }
+            updateStep('database', 'skipped');
+            console.log('ℹ️ Barcode not found in databases');
+          } else {
+            updateStep('database', 'skipped');
+          }
+
+          // Step 3: Try OCR text extraction
+          updateStep('ocr', 'active');
+          console.log('📝 Running OCR on image...');
+          const ocrResult = await extractTextFromImage(imageUri);
+
+          if (ocrResult.success && ocrResult.text) {
+            updateStep('ocr', 'complete');
+            console.log('✅ OCR extracted text:', ocrResult.text.substring(0, 200));
+
+            // Try to extract product name
+            const productName = extractProductName(ocrResult.text);
+            console.log('🏷️ Detected product name:', productName);
+
+            // Create search query from ingredients or text
+            const searchQuery = productName ||
+              (ocrResult.ingredients && ocrResult.ingredients.length > 0
+                ? createSearchQueryFromIngredients(ocrResult.ingredients)
+                : ocrResult.text.substring(0, 100));
+
+            if (searchQuery) {
+              // Step 4: Search for product by name/ingredients
+              updateStep('name_match', 'active');
+              console.log('🔍 Searching with query:', searchQuery);
+              const searchResult = await searchProducts(searchQuery, 1);
+
+              if (searchResult.products && searchResult.products.length > 0 && searchResult.products[0].product) {
+                updateStep('name_match', 'complete');
+                updateStep('details', 'complete');
+                const product = searchResult.products[0].product;
+                console.log('✅ Found matching product:', product.name);
+                router.push({
+                  pathname: '/product-result',
+                  params: {
+                    barcode: 'OCR_SCAN',
+                    name: product.name,
+                    brand: product.brand || 'Unknown',
+                    category: product.category || 'Personal Care',
+                    imageUrl: product.imageUrl || imageUri,
+                    ingredientsText: product.ingredientsText || '',
+                    sourceType: 'database',
+                  },
+                });
+                setLoading(false);
+                return;
+              }
+              updateStep('name_match', 'skipped');
+            } else {
+              updateStep('name_match', 'skipped');
+            }
+          } else {
+            console.log('⚠️ OCR failed:', ocrResult.error);
+            updateStep('ocr', 'skipped');
+            updateStep('name_match', 'skipped');
+          }
+
+          // Step 5: Try AI Vision identification (GPT-4 Vision)
+          updateStep('ai', 'active');
+          console.log('🤖 Trying AI Vision identification...');
+          const aiResult = await identifyProductFromImage(imageUri);
+
+          // ===== SCENARIO 1: Image Unusable / No Match =====
+          if (!aiResult.success || !aiResult.product_name || aiResult.confidence < 0.3) {
+            updateStep('ai', 'skipped');
+            console.log('❌ Scenario 1: Image unusable or AI could not identify');
+            setLoading(false);
+
+            // Show retake prompt via product-not-found with error state
+            router.push({
+              pathname: '/product-not-found/capture',
+              params: {
+                mode: 'retake',
+                error: 'Could not identify product. Try a clearer photo.',
+                imageUri: imageUri,
+              },
+            });
+            return;
+          }
+
+          updateStep('ai', 'complete');
+          console.log('✅ AI identified product:', aiResult.product_name, 'by', aiResult.brand_name, 'confidence:', aiResult.confidence);
+          console.log('📏 AI extracted size:', aiResult.size || '(not extracted)');
+
+          // TEMP DEBUG removed - size display fixed
+
+          // Try DB lookup for additional data
+          updateStep('details', 'active');
+          const dbSearchQuery = `${aiResult.brand_name || ''} ${aiResult.product_name}`.trim();
+          const dbResult = await searchProducts(dbSearchQuery, 1);
+
+          const hasDbMatch = dbResult.products && dbResult.products.length > 0 && dbResult.products[0].product;
+          const dbProduct = hasDbMatch ? dbResult.products[0].product : null;
+          const hasIngredients = dbProduct?.ingredientsText && dbProduct.ingredientsText.length > 10;
+
+          // ===== SCENARIO 4: Product Matched with All Info =====
+          if (hasDbMatch && hasIngredients) {
+            updateStep('details', 'complete');
+            console.log('✅ Scenario 4: Full DB match with ingredients');
+
+            const ingredientsData = {
+              normalised: dbProduct!.ingredientsText!
+                .split(',').map((i: string) => i.trim()).filter((i: string) => i),
+              rawText: dbProduct!.ingredientsText!
+            };
+
+            router.push({
+              pathname: '/product-result',
+              params: {
+                barcode: 'AI_VISION',
+                name: dbProduct!.name,
+                brand: dbProduct!.brand || aiResult.brand_name || 'Unknown',
+                category: dbProduct!.category || aiResult.category || 'Personal Care',
+                size: aiResult.size || '',
+                imageUrl: imageUri || dbProduct!.imageUrl,
+                ingredients: JSON.stringify(ingredientsData),
+                confidence: '0.9', // High confidence - full match
+                sourceType: 'database',
+              },
+            });
             setLoading(false);
             return;
           }
 
-          // Navigate to results with full scan data
+          // ===== SCENARIO 3: Product Matched but Missing Info =====
+          if (hasDbMatch && !hasIngredients) {
+            updateStep('details', 'complete');
+            console.log('⚠️ Scenario 3: DB match but missing ingredients');
+
+            const ingredientsData = {
+              normalised: aiResult.key_ingredients || [],
+              rawText: aiResult.key_ingredients?.join(', ') || ''
+            };
+
+            router.push({
+              pathname: '/product-result',
+              params: {
+                barcode: 'AI_VISION',
+                name: dbProduct!.name,
+                brand: dbProduct!.brand || aiResult.brand_name || 'Unknown',
+                category: dbProduct!.category || aiResult.category || 'Personal Care',
+                size: aiResult.size || '',
+                imageUrl: imageUri || dbProduct!.imageUrl,
+                ingredients: JSON.stringify(ingredientsData),
+                confidence: '0.7', // Medium confidence - needs ingredients
+                sourceType: 'database_incomplete', // New type for Scenario 3
+              },
+            });
+            setLoading(false);
+            return;
+          }
+
+          // ===== SCENARIO 2: Product Not in DB =====
+          updateStep('details', 'skipped');
+          console.log('📦 Scenario 2: AI identified but not in DB - prompt for product creation');
+
+          const ingredientsData = {
+            normalised: aiResult.key_ingredients || [],
+            rawText: aiResult.key_ingredients?.join(', ') || ''
+          };
+
           router.push({
             pathname: '/product-result',
             params: {
-              scanId: scanResult.scanId,
-              barcode: scanResult.product?.barcode || barcode || 'UNKNOWN',
-              name: scanResult.product?.name || 'Unknown Product',
-              brand: scanResult.product?.brand || 'Unknown Brand',
-              category: scanResult.product?.category || 'Personal Care',
-              size: (scanResult.product as any)?.size || '',
-              description: (scanResult.product as any)?.description || '',
-              // Use product imageUrl from database if available, otherwise user's uploaded image
-              imageUrl: (scanResult.product as any)?.imageUrl || imageUri,
-              confidence: scanResult.product?.confidence?.toString() || '0',
-              // Pass full data as JSON strings
-              ingredients: JSON.stringify(scanResult.ingredients),
-              scoring: JSON.stringify(scanResult.scoring),
+              barcode: 'AI_VISION',
+              name: aiResult.product_name,
+              brand: aiResult.brand_name || 'Unknown',
+              category: aiResult.category || 'Personal Care',
+              size: aiResult.size || '',
+              imageUrl: imageUri,
+              ingredients: JSON.stringify(ingredientsData),
+              confidence: (aiResult.confidence || 0.5).toString(),
+              sourceType: 'ai_identified', // Scenario 2 - show "Add other photo" banner
             },
           });
-        } catch (error) {
-          console.error('Error analyzing image:', error);
-          Alert.alert(
-            'Analysis Failed',
-            'Could not identify the product from this image. Try:\n\n• Taking a clearer photo of the product label\n• Ensuring good lighting\n• Including the product name and brand\n• Using the live camera scanner instead',
-            [
-              { text: 'Try Again', onPress: handleUploadFromLibrary },
-              { text: 'Cancel', style: 'cancel' }
-            ]
-          );
-        } finally {
           setLoading(false);
+          return;
+
+        } catch (error) {
+          console.error('❌ Error analyzing image:', error);
+          // Navigate to Product Not Found flow with the image
+          setLoading(false);
+          router.push({
+            pathname: '/product-not-found',
+            params: {
+              imageUri: imageUri,
+            },
+          });
         }
       }
     } catch (error) {
@@ -290,7 +465,7 @@ export default function ScanScreen() {
     try {
       // Request camera permissions for taking photo
       const { status } = await ImagePicker.requestCameraPermissionsAsync();
-      
+
       if (status !== 'granted') {
         Alert.alert(
           'Permission Required',
@@ -309,13 +484,13 @@ export default function ScanScreen() {
       if (!result.canceled && result.assets[0]) {
         const imageUri = result.assets[0].uri;
         console.log('📝 Captured ingredients photo:', imageUri);
-        
+
         setLoading(true);
-        
+
         try {
           // Extract text from image using OCR
           const ocrResult = await extractTextFromImage(imageUri);
-          
+
           if (!ocrResult.success || !ocrResult.text) {
             Alert.alert(
               'No Text Found',
@@ -332,7 +507,7 @@ export default function ScanScreen() {
           console.log('🏷️ Detected product name:', productName);
 
           // Create search query from ingredients
-          const searchQuery = productName || 
+          const searchQuery = productName ||
             (ocrResult.ingredients && ocrResult.ingredients.length > 0
               ? createSearchQueryFromIngredients(ocrResult.ingredients)
               : ocrResult.text.substring(0, 100));
@@ -442,86 +617,86 @@ export default function ScanScreen() {
         onBarcodeScanned={scanned ? undefined : handleBarcodeScan}
         enableTorch={torchOn}
       />
-      
+
       {/* Header */}
       <View style={styles.header}>
-          <TouchableOpacity style={styles.closeButton} onPress={() => router.back()}>
-            <X color={colors.white} size={28} />
-          </TouchableOpacity>
-          <TouchableOpacity 
-            style={styles.torchButton} 
-            onPress={() => setTorchOn(!torchOn)}
-          >
-            {torchOn ? (
-              <Zap color={colors.yellow} size={28} fill={colors.yellow} />
-            ) : (
-              <ZapOff color={colors.white} size={28} />
-            )}
-          </TouchableOpacity>
+        <TouchableOpacity style={styles.closeButton} onPress={() => router.back()}>
+          <X color={colors.white} size={28} />
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.torchButton}
+          onPress={() => setTorchOn(!torchOn)}
+        >
+          {torchOn ? (
+            <Zap color={colors.yellow} size={28} fill={colors.yellow} />
+          ) : (
+            <ZapOff color={colors.white} size={28} />
+          )}
+        </TouchableOpacity>
       </View>
 
       {/* Scan Area Overlay */}
       <View style={styles.overlay}>
-          {/* Top overlay */}
-          <View style={styles.overlayTop} />
-          
-          {/* Middle row with scan area */}
-          <View style={styles.overlayMiddle}>
-            <View style={styles.overlaySide} />
-            <View style={styles.scanArea}>
-              {/* Corner brackets */}
-              <View style={[styles.corner, styles.cornerTopLeft]} />
-              <View style={[styles.corner, styles.cornerTopRight]} />
-              <View style={[styles.corner, styles.cornerBottomLeft]} />
-              <View style={[styles.corner, styles.cornerBottomRight]} />
-              
-              {loading && (
-                <View style={styles.loadingOverlay}>
-                  <Text style={styles.loadingText}>{loadingMessage}</Text>
-                </View>
-              )}
-            </View>
-            <View style={styles.overlaySide} />
+        {/* Top overlay */}
+        <View style={styles.overlayTop} />
+
+        {/* Middle row with scan area */}
+        <View style={styles.overlayMiddle}>
+          <View style={styles.overlaySide} />
+          <View style={styles.scanArea}>
+            {/* Corner brackets */}
+            <View style={[styles.corner, styles.cornerTopLeft]} />
+            <View style={[styles.corner, styles.cornerTopRight]} />
+            <View style={[styles.corner, styles.cornerBottomLeft]} />
+            <View style={[styles.corner, styles.cornerBottomRight]} />
+
+            {loading && (
+              <View style={styles.loadingOverlay}>
+                <Text style={styles.loadingText}>{loadingMessage}</Text>
+              </View>
+            )}
           </View>
-          
-          {/* Bottom overlay */}
-          <View style={styles.overlayBottom} />
+          <View style={styles.overlaySide} />
+        </View>
+
+        {/* Bottom overlay */}
+        <View style={styles.overlayBottom} />
       </View>
 
       {/* Instructions */}
       <View style={styles.instructions}>
-          <Text style={styles.instructionTitle}>Capture Product Details</Text>
-          <Text style={styles.instructionText}>Scan barcode, upload photo, or search manually</Text>
+        <Text style={styles.instructionTitle}>Capture Product Details</Text>
+        <Text style={styles.instructionText}>Scan barcode, upload photo, or search manually</Text>
       </View>
 
       {/* Fan Menu Arc */}
       <View style={styles.fanMenuContainer}>
-          {/* Upload from Library - Left (Purple) */}
-          <TouchableOpacity 
-            style={[styles.fanOption, styles.fanOptionLeft, styles.purpleOption]}
-            onPress={handleUploadFromLibrary}
-          >
-            <ImageIcon color={colors.white} size={24} />
-            <Text style={styles.fanOptionLabel}>Upload</Text>
-          </TouchableOpacity>
+        {/* Upload from Library - Left (Purple) */}
+        <TouchableOpacity
+          style={[styles.fanOption, styles.fanOptionLeft, styles.purpleOption]}
+          onPress={handleUploadFromLibrary}
+        >
+          <ImageIcon color={colors.white} size={24} />
+          <Text style={styles.fanOptionLabel}>Upload</Text>
+        </TouchableOpacity>
 
-          {/* Manual Search - Center (Mint) */}
-          <TouchableOpacity 
-            style={[styles.fanOption, styles.fanOptionCenter, styles.mintOption]}
-            onPress={() => setShowSearchModal(true)}
-          >
-            <Search color={colors.black} size={24} />
-            <Text style={styles.fanOptionLabel}>Search</Text>
-          </TouchableOpacity>
+        {/* Manual Search - Center (Mint) */}
+        <TouchableOpacity
+          style={[styles.fanOption, styles.fanOptionCenter, styles.mintOption]}
+          onPress={() => setShowSearchModal(true)}
+        >
+          <Search color={colors.black} size={24} />
+          <Text style={styles.fanOptionLabel}>Search</Text>
+        </TouchableOpacity>
 
-          {/* Photo of Ingredients - Right (Yellow) */}
-          <TouchableOpacity 
-            style={[styles.fanOption, styles.fanOptionRight, styles.yellowOption]}
-            onPress={handlePhotoIngredients}
-          >
-            <FileText color={colors.black} size={24} />
-            <Text style={styles.fanOptionLabel}>Ingredients</Text>
-          </TouchableOpacity>
+        {/* Photo of Ingredients - Right (Yellow) */}
+        <TouchableOpacity
+          style={[styles.fanOption, styles.fanOptionRight, styles.yellowOption]}
+          onPress={handlePhotoIngredients}
+        >
+          <FileText color={colors.black} size={24} />
+          <Text style={styles.fanOptionLabel}>Ingredients</Text>
+        </TouchableOpacity>
       </View>
 
       {/* Product Search Modal */}
@@ -541,6 +716,12 @@ export default function ScanScreen() {
             },
           });
         }}
+      />
+
+      {/* Progress overlay for scanning */}
+      <ScanProgressOverlay
+        visible={loading}
+        steps={scanSteps}
       />
     </View>
   );

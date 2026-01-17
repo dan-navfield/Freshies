@@ -29,26 +29,40 @@ export async function saveScannedProduct(product: Omit<ScannedProduct, 'id' | 's
   try {
     // Get existing products
     const existing = await getScannedProducts();
-    
-    // Check if product already exists (by barcode)
-    const existingIndex = existing.findIndex(p => p.barcode === product.barcode);
-    
+
+    // Check if product already exists
+    // For AI-identified products (generic barcodes), check by name+brand
+    // For real barcodes, check by barcode
+    const isGenericBarcode = ['AI_VISION', 'OCR_SCAN', 'CAMERA_CAPTURE', 'LIVE_DETECTION'].includes(product.barcode);
+
+    const existingIndex = existing.findIndex(p => {
+      if (isGenericBarcode) {
+        // Match by name and brand (case-insensitive)
+        return p.name.toLowerCase() === product.name.toLowerCase() &&
+          p.brand.toLowerCase() === product.brand.toLowerCase();
+      }
+      // Match by actual barcode
+      return p.barcode === product.barcode;
+    });
+
     const newProduct: ScannedProduct = {
       ...product,
       id: existingIndex >= 0 ? existing[existingIndex].id : Date.now().toString(),
       scannedDate: new Date().toISOString(),
     };
-    
+
     // If exists, update it; otherwise add to beginning
     if (existingIndex >= 0) {
       existing[existingIndex] = newProduct;
+      console.log('✅ Updated existing product:', product.name);
     } else {
       existing.unshift(newProduct);
+      console.log('✅ Saved new product:', product.name);
     }
-    
+
     // Keep only last 100 products
     const trimmed = existing.slice(0, 100);
-    
+
     await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(trimmed));
     console.log('✅ Saved scanned product:', product.name);
   } catch (error) {
@@ -64,7 +78,7 @@ export async function getScannedProducts(): Promise<ScannedProduct[]> {
   try {
     const data = await AsyncStorage.getItem(STORAGE_KEY);
     if (!data) return [];
-    
+
     const products = JSON.parse(data) as ScannedProduct[];
     return products;
   } catch (error) {

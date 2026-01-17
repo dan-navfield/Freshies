@@ -1,4 +1,4 @@
-import { supabase } from '../../lib/supabase';
+import { supabase } from '../lib/supabase';
 import * as FileSystem from 'expo-file-system';
 import { manipulateAsync, SaveFormat } from 'expo-image-manipulator';
 
@@ -45,10 +45,10 @@ export async function uploadFreshie(
     const timestamp = Date.now();
     const fileName = `${userId}/${stepId}_${timestamp}.jpg`;
 
-    // Read the file as base64
-    const base64 = await FileSystem.readAsStringAsync(compressedUri, {
-      encoding: 'base64',
-    });
+    // Read the file as base64 using new File API
+    const { File } = require('expo-file-system/next');
+    const file = new File(compressedUri);
+    const base64 = await file.base64();
 
     // Convert base64 to blob for upload
     const response = await fetch(`data:image/jpeg;base64,${base64}`);

@@ -3,11 +3,11 @@ import { View, Text, ScrollView, TouchableOpacity, RefreshControl } from 'react-
 import { useRouter } from 'expo-router';
 import { Check, Bell, Award, Sparkles, Flame, Users } from 'lucide-react-native';
 import { colors, spacing, radii } from '../../src/theme/tokens';
-import { useAuth } from '../../contexts/AuthContext';
-import { supabase } from '../../lib/supabase';
+import { useAuth } from '../../src/contexts/AuthContext';
+import { supabase } from '../../src/lib/supabase';
 import { markNotificationRead } from '../../src/utils/approvalHelpers';
 import { StyleSheet } from 'react-native';
-import DetailPageHeader from '../../components/DetailPageHeader';
+import DetailPageHeader from '../../src/components/DetailPageHeader';
 
 interface Notification {
   id: string;

@@ -5,7 +5,7 @@ import { colors, radii, spacing } from '../../src/theme/tokens';
 import { ChevronLeft, Bell, CheckCircle, AlertCircle, Package, Sparkles, Circle } from 'lucide-react-native';
 import { getNotifications, markNotificationAsRead } from '../../src/services/notificationsService';
 import { Notification } from '../../src/types/products';
-import { useAuth } from '../../contexts/AuthContext';
+import { useAuth } from '../../src/contexts/AuthContext';
 
 type FilterType = 'all' | 'unread' | 'approval' | 'routine' | 'product';
 

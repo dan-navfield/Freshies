@@ -1,5 +1,5 @@
 import { Tabs } from 'expo-router';
-import { CustomTabBar } from '../../../components/CustomTabBar';
+import { CustomTabBar } from '../../../src/components/CustomTabBar';
 
 /**
  * Tab Navigator for main app screens
@@ -17,12 +17,12 @@ export default function TabsLayout() {
       <Tabs.Screen name="favorites" options={{ title: 'Learn' }} />
       <Tabs.Screen name="scan" options={{ title: 'Scan' }} />
       <Tabs.Screen name="routine" options={{ title: 'Routines' }} />
-      <Tabs.Screen name="history" options={{ title: 'History' }} />
-      <Tabs.Screen 
-        name="learn" 
-        options={{ 
+      <Tabs.Screen name="shelf" options={{ title: 'My Shelf' }} />
+      <Tabs.Screen
+        name="learn"
+        options={{
           href: null, // Hide from tabs - accessed via favorites
-        }} 
+        }}
       />
     </Tabs>
   );
