@@ -9,7 +9,7 @@ import { X } from 'lucide-react-native';
 import { colors, spacing, radii } from '../../theme/tokens';
 import type { ExperienceRating, CreateReviewRequest } from '../../types/reviews';
 import type { ChildProfile } from '../../types/family';
-import StarRating from './StarRating';
+import StarRating from '../StarRating';
 
 interface ReviewSubmissionModalProps {
   visible: boolean;
