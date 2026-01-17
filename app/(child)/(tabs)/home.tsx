@@ -15,7 +15,7 @@ import PageHeader from '../../../src/components/navigation/PageHeader';
 import FloatingAIButton from '../../../src/components/FloatingAIButton';
 import { childHomeStyles } from '../../../src/styles/child/tabs/home-styles';
 import { ShelfItem } from '../../../src/types/shelf';
-import { shelfService } from '../../../src/services/shelfService';
+import { shelfService } from '../../../src/modules/product-library';
 import ExpiryRing from '../../../src/components/ExpiryRing';
 import GamificationBand from '../../../src/components/gamification/GamificationBand';
 

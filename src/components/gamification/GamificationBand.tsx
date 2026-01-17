@@ -4,14 +4,14 @@ import { useRouter } from 'expo-router';
 import { Star, ChevronRight } from 'lucide-react-native';
 import { colors, spacing, radii } from '../../theme/tokens';
 import { useChildProfile } from '../../contexts/ChildProfileContext';
-import { 
-  getUserPoints, 
-  getUserAchievements, 
+import {
+  getUserPoints,
+  getUserAchievements,
   getUserStreaks,
   type UserPoints,
   type UserAchievement,
   type Streak
-} from '../../services/gamificationService';
+} from '../../../src/modules/gamification';
 
 /**
  * Reusable Gamification Band Component

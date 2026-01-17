@@ -21,7 +21,7 @@ import {
     createWishlistGroup,
     addItemToGroup,
     removeItemFromGroup,
-} from '../../services/wishlistService';
+} from '../../../src/modules/product-library';
 import { WishlistGroup, WishlistItem, CreateWishlistGroupDTO } from '../../types/wishlist';
 
 interface AddToGroupModalProps {

@@ -4,8 +4,8 @@ import { useEffect, useState } from 'react';
 import { colors, radii, spacing } from '../../../src/theme/tokens';
 import { useAuth } from '../../../src/contexts/AuthContext';
 import { ChevronLeft, Search, Filter, Package, TrendingUp, Clock, Grid, List } from 'lucide-react-native';
-import { getChildProducts } from '../../../src/services/productsService';
-import { getChildren } from '../../../src/services/familyService';
+import { getChildProducts } from '../../../src/modules/product-discovery';
+import { getChildren } from '../../../src/modules/parent-controls';
 import { ChildProduct } from '../../../src/types/products';
 import { ChildProfile } from '../../../src/types/family';
 

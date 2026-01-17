@@ -8,9 +8,9 @@ import { useChildProfile } from '../../contexts/ChildProfileContext';
 import FreshieCamera from '../camera/FreshieCamera';
 import RoutineGuideModal from './RoutineGuideModal';
 import RoutineCompletionCelebration from './RoutineCompletionCelebration';
-import { routineService } from '../../services/routineService';
-import { calculateStreak, awardRoutinePoints } from '../../services/streakService';
-import { usageService } from '../../services/usageService';
+import { routineService } from '../../../src/modules/routines';
+import { calculateStreak, awardRoutinePoints } from '../../../src/modules/gamification';
+import { usageService } from '../../../src/modules/product-library';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 

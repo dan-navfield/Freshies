@@ -3,7 +3,7 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { colors, radii, spacing } from '../../../../../src/theme/tokens';
 import { ChevronLeft, Link as LinkIcon, Copy, Share2, RefreshCw, Smartphone, CheckCircle } from 'lucide-react-native';
-import { getChildById, generateChildInvitation } from '../../../../../src/services/familyService';
+import { getChildById, generateChildInvitation } from '../../../src/modules/parent-controls';
 import { ChildProfile } from '../../../../../src/types/family';
 import { Clipboard } from 'react-native';
 

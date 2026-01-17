@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { colors, spacing, radii } from '../../src/theme/tokens';
 import { supabase } from '../../src/lib/supabase';
-import { shelfService } from '../../src/services/shelfService';
+import { shelfService } from '../../../src/modules/product-library';
 import { ShelfItem } from '../../src/types/shelf';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Info, Calendar as CalendarIcon, X } from 'lucide-react-native';

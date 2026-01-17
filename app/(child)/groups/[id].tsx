@@ -23,7 +23,7 @@ import {
     getWishlistGroups,
     getGroupItems,
     removeItemFromGroup,
-} from '../../../src/services/wishlistService';
+} from '../../../src/modules/product-library';
 import { WishlistGroup, WishlistItem } from '../../../src/types/wishlist';
 import WishlistCard from '../../../src/components/product/WishlistCard';
 

@@ -4,7 +4,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { useCallback, useState } from 'react';
 import { colors, spacing, radii } from '../../src/theme/tokens';
 import { ChevronLeft, PackageOpen, RotateCcw } from 'lucide-react-native';
-import { shelfService } from '../../src/services/shelfService';
+import { shelfService } from '../../../src/modules/product-library';
 import { ShelfItem } from '../../src/types/shelf';
 import { useChildProfile } from '../../src/contexts/ChildProfileContext';
 import { useAuth } from '../../src/contexts/AuthContext';

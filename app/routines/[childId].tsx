@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { colors, radii, spacing } from '../../src/theme/tokens';
 import { ChevronLeft, Plus, Sun, Moon, Sparkles, CheckCircle, Clock } from 'lucide-react-native';
 import { getChildRoutines } from '../../src/services/routinesService';
-import { getChildById } from '../../src/services/familyService';
+import { getChildById } from '../../../src/modules/parent-controls';
 import { RoutineWithProducts } from '../../src/types/products';
 import { ChildProfile } from '../../src/types/family';
 

@@ -4,7 +4,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ShieldCheck, ShieldAlert, AlertTriangle, ArrowLeft, Share2, Bookmark, ExternalLink } from 'lucide-react-native';
 import { colors, spacing, radii } from '../../../src/theme/tokens';
-import { getIngredientById, IngredientDetail } from '../../../src/services/ingredientsService';
+import { getIngredientById, IngredientDetail } from '../../../src/modules/ingredients';
 
 export default function IngredientDetailScreen() {
     const { id } = useLocalSearchParams();

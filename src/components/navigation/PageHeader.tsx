@@ -6,8 +6,7 @@ import { User, Search, Bell, ChevronLeft } from 'lucide-react-native';
 import { useAuth } from '../../contexts/AuthContext';
 import { useChildProfile } from '../../contexts/ChildProfileContext';
 import { supabase } from '../../lib/supabase';
-import { useState, useCallback } from 'react';
-import { useAuthStore } from '../../stores';
+import { useState, useCallback, useEffect } from 'react';
 
 import GlobalSearchOverlay from '../GlobalSearch/GlobalSearchOverlay';
 
@@ -56,12 +55,35 @@ export default function PageHeader({
   const insets = useSafeAreaInsets();
   const { user, userRole } = useAuth();
   const { childProfile } = useChildProfile();
-  const profile = useAuthStore(state => state.profile);
+  const [profile, setProfile] = useState<any>(null);
   const [internalUnreadCount, setInternalUnreadCount] = useState(0);
 
   // Global Search State
   const [globalSearchVisible, setGlobalSearchVisible] = useState(false);
   const [globalQuery, setGlobalQuery] = useState('');
+
+  // Fetch profile data for parent users
+  useEffect(() => {
+    const fetchProfile = async () => {
+      if (!user?.id || userRole === 'child') return;
+
+      try {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', user.id)
+          .single();
+
+        if (!error && data) {
+          setProfile(data);
+        }
+      } catch (error) {
+        console.error('Error fetching profile in PageHeader:', error);
+      }
+    };
+
+    fetchProfile();
+  }, [user?.id, userRole]);
 
   // ... (Avatar logic stays same)
 

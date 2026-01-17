@@ -4,9 +4,9 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ArrowLeft, Share2, Bookmark, Heart, Package, ShieldCheck, AlertTriangle } from 'lucide-react-native';
 import { colors, spacing, radii } from '../../../src/theme/tokens';
-import { getProductById, ProductDetail } from '../../../src/services/productsService';
-import { shelfService } from '../../../src/services/shelfService';
-import { addToWishlist, isInWishlist, removeFromWishlist } from '../../../src/services/wishlistService';
+import { getProductById, ProductDetail } from '../../../src/modules/product-discovery';
+import { shelfService } from '../../../src/modules/product-library';
+import { addToWishlist, isInWishlist, removeFromWishlist } from '../../../src/modules/product-library';
 import { useAuth } from '../../../src/contexts/AuthContext';
 import { useChildProfile } from '../../../src/contexts/ChildProfileContext';
 

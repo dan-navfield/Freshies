@@ -1,6 +1,6 @@
 // Export all stores
-export { useAuthStore } from './authStore';
-export type { UserRole } from './authStore';
+export { useFamilyStore } from './familyStore';
+export type { Family, ChildProfile } from './familyStore';
 
 export { useOnboardingStore } from './onboardingStore';
 export type { OnboardingStep } from './onboardingStore';

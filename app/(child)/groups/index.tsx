@@ -25,7 +25,7 @@ import {
     getWishlistGroups,
     createWishlistGroup,
     deleteWishlistGroup,
-} from '../../../src/services/wishlistService';
+} from '../../../src/modules/product-library';
 import { WishlistGroup, CreateWishlistGroupDTO } from '../../../src/types/wishlist';
 
 const EMOJI_OPTIONS = ['💖', '🌸', '✨', '🧴', '☀️', '🌙', '💄', '💅', '🧼', '💆'];

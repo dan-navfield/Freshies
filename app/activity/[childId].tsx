@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { colors, radii, spacing } from '../../src/theme/tokens';
 import { ChevronLeft, Scan, CheckCircle, XCircle, Package, Calendar, Filter } from 'lucide-react-native';
 import { supabase } from '../../src/lib/supabase';
-import { getChildById } from '../../src/services/familyService';
+import { getChildById } from '../../../src/modules/parent-controls';
 import { ChildProfile } from '../../src/types/family';
 
 interface Activity {

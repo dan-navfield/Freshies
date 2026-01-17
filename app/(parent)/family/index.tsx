@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { colors, radii, spacing } from '../../../src/theme/tokens';
 import { useAuth } from '../../../src/contexts/AuthContext';
 import { Users, Plus, Settings, AlertCircle, CheckCircle, Clock, ChevronLeft, Package } from 'lucide-react-native';
-import { getChildren } from '../../../src/services/familyService';
+import { getChildren } from '../../../src/modules/parent-controls';
 import { ChildProfile, SAFETY_TIERS } from '../../../src/types/family';
 
 export default function FamilyScreen() {

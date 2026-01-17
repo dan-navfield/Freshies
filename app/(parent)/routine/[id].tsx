@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { useLocalSearchParams, Stack, router } from 'expo-router';
 import { supabase } from '../../../src/lib/supabase';
-import { CustomRoutine } from '../../../src/services/routineService';
+import { CustomRoutine } from '../../../src/modules/routines';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, radii, spacing } from '../../../src/theme/tokens';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';

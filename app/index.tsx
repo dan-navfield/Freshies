@@ -23,7 +23,7 @@ export default function Index() {
     if (userRole === 'child') {
       return <Redirect href="/(child)/(tabs)/home" />;
     } else if (userRole === 'parent') {
-      return <Redirect href="/(parent)/(tabs)" />;
+      return <Redirect href="/(parent)/(tabs)/home" />;
     }
   }
 

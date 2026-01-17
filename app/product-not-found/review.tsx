@@ -9,7 +9,7 @@ import { Stack, router, useLocalSearchParams } from 'expo-router';
 import { colors, radii, spacing } from '../../src/theme/tokens';
 import { ChevronLeft, Check, Wand2, AlertCircle, CheckCircle, XCircle, HelpCircle, Trash2 } from 'lucide-react-native';
 import { extractTextFromImage, parseIngredients } from '../../src/services/ocr/ingredientScanner';
-import { matchIngredientsToDatabase, IngredientMatchResult } from '../../src/services/ingredientsService';
+import { matchIngredientsToDatabase, IngredientMatchResult } from '../../../src/modules/ingredients';
 
 /**
  * Convert text to sentence case (capitalize first letter of each word)

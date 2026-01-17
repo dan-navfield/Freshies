@@ -6,7 +6,7 @@ import { useAuth } from '../../src/contexts/AuthContext';
 import { ChevronLeft, Filter, Calendar } from 'lucide-react-native';
 import { getParentActivities, groupActivitiesByDate, getActivityStats, getTimeAgo } from '../../src/services/activityService';
 import { ActivityWithChild, ActivityGroup, ActivityStats, ActivityFilter, ACTIVITY_CONFIG, CATEGORY_CONFIG } from '../../src/types/activity';
-import { getChildren } from '../../src/services/familyService';
+import { getChildren } from '../../../src/modules/parent-controls';
 import { ChildProfile } from '../../src/types/family';
 
 export default function ActivityTimelineScreen() {

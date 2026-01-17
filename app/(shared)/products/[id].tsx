@@ -5,7 +5,7 @@ import { colors, radii, spacing } from '../../../src/theme/tokens';
 import { ChevronLeft, Calendar, TrendingUp, Package, Trash2, Plus } from 'lucide-react-native';
 import { supabase } from '../../../src/lib/supabase';
 import { ChildProduct } from '../../../src/types/products';
-import { logProductUsage, removeChildProduct } from '../../../src/services/productsService';
+import { logProductUsage, removeChildProduct } from '../../../src/modules/product-discovery';
 
 export default function ProductDetailScreen() {
   const router = useRouter();

@@ -2,7 +2,7 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-nati
 import { router } from 'expo-router';
 import { colors, spacing, radii } from '../../../src/theme/tokens';
 import { ChevronLeft, Check } from 'lucide-react-native';
-import { useSettingsStore } from '../../../src/stores/settingsStore';
+import { usePreferencesStore } from '../../../src/stores';
 import { AIProvider } from '../../../src/services/ai/types';
 
 const AI_PROVIDERS: Array<{
@@ -30,7 +30,7 @@ const AI_PROVIDERS: Array<{
 ];
 
 export default function AIProviderSettingsScreen() {
-  const { preferredAIProvider, setPreferredAIProvider, adminAIProvider } = useSettingsStore();
+  const { preferredAIProvider, setPreferredAIProvider, adminAIProvider } = usePreferencesStore();
   
   // If admin has locked a provider, show that
   const isLocked = !!adminAIProvider;

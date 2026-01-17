@@ -3,7 +3,7 @@ import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { colors, radii, spacing } from '../../src/theme/tokens';
 import { ChevronLeft, Bell, CheckCircle, AlertCircle, Package, Sparkles, Circle } from 'lucide-react-native';
-import { getNotifications, markNotificationAsRead } from '../../src/services/notificationsService';
+import { getNotifications, markNotificationAsRead } from '../../../src/modules/notifications';
 import { Notification } from '../../src/types/products';
 import { useAuth } from '../../src/contexts/AuthContext';
 

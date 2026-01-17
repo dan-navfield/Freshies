@@ -3,7 +3,7 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { colors, radii, spacing } from '../../../../../src/theme/tokens';
 import { ChevronLeft, Save, Shield, TrendingUp } from 'lucide-react-native';
-import { getChildById, updateChild } from '../../../../../src/services/familyService';
+import { getChildById, updateChild } from '../../../src/modules/parent-controls';
 import { ChildProfile, SafetyTier, SAFETY_TIERS, INDEPENDENCE_LEVELS } from '../../../../../src/types/family';
 
 export default function EditChildScreen() {

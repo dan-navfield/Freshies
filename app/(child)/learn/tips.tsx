@@ -4,7 +4,7 @@ import { Sun, Droplets, Moon, Sparkles, Heart, Shield, Star } from 'lucide-react
 import { colors, spacing, radii } from '../../../src/theme/tokens';
 import SubPageHeader from '../../../src/components/navigation/SubPageHeader';
 import { useChildProfile } from '../../../src/contexts/ChildProfileContext';
-import { trackLearningProgress } from '../../../src/services/gamificationService';
+import { trackLearningProgress } from '../../../src/modules/gamification';
 import { supabase } from '../../../src/lib/supabase';
 
 interface Tip {

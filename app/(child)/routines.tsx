@@ -12,7 +12,7 @@ import { useRouter, useFocusEffect } from 'expo-router';
 import DetailPageHeader from '../../src/components/navigation/DetailPageHeader';
 import GamificationBand from '../../src/components/gamification/GamificationBand';
 import { useChildProfile } from '../../src/contexts/ChildProfileContext';
-import { routineService } from '../../src/services/routineService';
+import { routineService } from '../../../src/modules/routines';
 import { colors, spacing, radii } from '../../src/theme/tokens';
 import {
   Plus,

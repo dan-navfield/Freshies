@@ -224,7 +224,7 @@ export default function RoutineHomeScreen() {
     }
 
     try {
-      const { routineService } = await import('../../../src/services/routineService');
+      const { routineService } = await import('../../../src/modules/routines');
       const result = await routineService.getRoutinesForToday(childProfile.id);
 
       if (!result.ok) {
@@ -415,7 +415,7 @@ export default function RoutineHomeScreen() {
     });
 
     // Update in database
-    const { routineService } = await import('../../../src/services/routineService');
+    const { routineService } = await import('../../../src/modules/routines');
     const result = await routineService.updateActiveDays(routine.id, newDays);
     if (!result.ok) {
       console.error('Failed to update active days:', result.error);

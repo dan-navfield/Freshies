@@ -6,7 +6,7 @@
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 import { supabase } from '../lib/supabase';
-import { sendRoutineReminder } from './notificationsService';
+import { sendRoutineReminder } from '../notifications';
 
 // Configure notification behavior
 Notifications.setNotificationHandler({

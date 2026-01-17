@@ -10,7 +10,7 @@ import { searchMakeupByBrand } from '../../../src/services/makeup/makeupApi';
 import PageHeader from '../../../src/components/navigation/PageHeader';
 import FloatingAIButton from '../../../src/components/FloatingAIButton';
 import ChildSwitcher from '../../../src/components/navigation/ChildSwitcher';
-import { getChildren } from '../../../src/services/familyService';
+import { getChildren } from '../../../src/modules/parent-controls';
 import { ChildProfile } from '../../../src/types/family';
 import { supabase } from '../../../src/lib/supabase';
 

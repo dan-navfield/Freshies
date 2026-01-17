@@ -19,7 +19,7 @@ import {
 } from 'lucide-react-native';
 import { colors, spacing, radii } from '../../src/theme/tokens';
 import { LinearGradient } from 'expo-linear-gradient';
-import { achievementService, UserAchievement } from '../../src/services/achievementService';
+import { achievementService, UserAchievement } from '../../../src/modules/gamification';
 import { useChildProfile } from '../../src/contexts/ChildProfileContext';
 import { supabase } from '../../src/lib/supabase';
 import DetailPageHeader from '../../src/components/navigation/DetailPageHeader';

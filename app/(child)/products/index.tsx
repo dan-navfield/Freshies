@@ -6,9 +6,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Search, Package, ShieldCheck, AlertTriangle, ShieldAlert, Heart, Check } from 'lucide-react-native';
 import PageHeader from '../../../src/components/navigation/PageHeader';
 import { colors, spacing, radii } from '../../../src/theme/tokens';
-import { getPopularProducts, searchProducts, getProductsByFilter, ProductDetail } from '../../../src/services/productsService';
-import { getWishlistItems } from '../../../src/services/wishlistService';
-import { shelfService } from '../../../src/services/shelfService';
+import { getPopularProducts, searchProducts, getProductsByFilter, ProductDetail } from '../../../src/modules/product-discovery';
+import { getWishlistItems } from '../../../src/modules/product-library';
+import { shelfService } from '../../../src/modules/product-library';
 import { useAuth } from '../../../src/contexts/AuthContext';
 import { useChildProfile } from '../../../src/contexts/ChildProfileContext';
 

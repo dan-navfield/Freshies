@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { colors, radii, spacing } from '../../../src/theme/tokens';
 import { useAuth } from '../../../src/contexts/AuthContext';
 import { ChevronLeft, Calendar, Shield } from 'lucide-react-native';
-import { addChild } from '../../../src/services/familyService';
+import { addChild } from '../../../src/modules/parent-controls';
 import { SafetyTier, SAFETY_TIERS, INDEPENDENCE_LEVELS } from '../../../src/types/family';
 import DateTimePicker from '@react-native-community/datetimepicker';
 

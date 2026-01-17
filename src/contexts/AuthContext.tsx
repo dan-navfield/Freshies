@@ -1,7 +1,8 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { Session, User } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
-import { useAuthStore, UserRole } from '../stores';
+
+export type UserRole = 'parent' | 'child' | 'admin' | null;
 
 interface AuthContextType {
   session: Session | null;
@@ -21,9 +22,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [userRole, setUserRole] = useState<UserRole>(null);
   const [onboardingCompleted, setOnboardingCompleted] = useState(false);
   const [loading, setLoading] = useState(true);
-
-  // Sync with Zustand store
-  const setAuthStoreUser = useAuthStore((state) => state.setUser);
 
   useEffect(() => {
     let mounted = true;
@@ -98,14 +96,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const role = data?.role || null;
       setUserRole(role);
       setOnboardingCompleted(data?.onboarding_completed || false);
-
-      // Sync with Zustand store
-      setAuthStoreUser(userId, role, data);
     } catch (error) {
       console.error('Error fetching user role:', error);
       setUserRole(null);
       setOnboardingCompleted(false);
-      setAuthStoreUser(null, null, null);
     } finally {
       setLoading(false);
     }
@@ -125,8 +119,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setSession(null);
     setUser(null);
     setUserRole(null);
-    // Clear Zustand store
-    useAuthStore.getState().clearAuth();
   };
 
   return (

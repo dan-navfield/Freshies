@@ -2,14 +2,14 @@ import { View, Text, StyleSheet, ScrollView, Pressable, Image, ActivityIndicator
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
-import { shelfService } from '../../../src/services/shelfService';
-import { routineService } from '../../../src/services/routineService';
-import { getWishlistItems, removeFromWishlist, getWishlistStats, requestApproval, getWishlistGroups } from '../../../src/services/wishlistService';
+import { shelfService } from '../../../src/modules/product-library';
+import { routineService } from '../../../src/modules/routines';
+import { getWishlistItems, removeFromWishlist, getWishlistStats, requestApproval, getWishlistGroups } from '../../../src/modules/product-library';
 import { ShelfItem } from '../../../src/types/shelf';
 import { WishlistItem, WishlistStats, WishlistStatus, WishlistGroup } from '../../../src/types/wishlist';
 import { colors, spacing, radii } from '../../../src/theme/tokens';
 import { Plus, AlertCircle, Package, Heart, ShoppingBag, FolderHeart, ChevronRight, AlertTriangle, ArrowUpDown, Check, X } from 'lucide-react-native';
-import { usageService } from '../../../src/services/usageService';
+import { usageService } from '../../../src/modules/product-library';
 import PageHeader from '../../../src/components/navigation/PageHeader';
 import WishlistCard from '../../../src/components/product/WishlistCard';
 import ApprovalRequestModal from '../../../src/components/modals/ApprovalRequestModal';

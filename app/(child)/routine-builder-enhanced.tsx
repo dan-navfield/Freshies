@@ -22,7 +22,7 @@ import { colors, spacing, radii } from '../../src/theme/tokens';
 import { useChildProfile } from '../../src/contexts/ChildProfileContext';
 import { useAuth } from '../../src/contexts/AuthContext';
 import { supabase } from '../../src/lib/supabase';
-import { routineService, CustomRoutine, RoutineStepData } from '../../src/services/routineService';
+import { routineService, CustomRoutine, RoutineStepData } from '../../../src/modules/routines';
 import { routineTemplateService, RoutineStepTemplate } from '../../src/services/routineTemplateService';
 import DetailPageHeader from '../../src/components/navigation/DetailPageHeader';
 import GamificationBand from '../../src/components/gamification/GamificationBand';

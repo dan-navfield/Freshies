@@ -5,7 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Search, Info, AlertTriangle, ShieldCheck, ShieldAlert, Sparkles, ChevronRight } from 'lucide-react-native';
 import PageHeader from '../../../src/components/navigation/PageHeader';
 import { colors, spacing, radii } from '../../../src/theme/tokens';
-import { getPopularIngredients, searchIngredients, IngredientDetail, getIngredientsByFilter } from '../../../src/services/ingredientsService';
+import { getPopularIngredients, searchIngredients, IngredientDetail, getIngredientsByFilter } from '../../../src/modules/ingredients';
 
 const FILTERS = [
     { id: 'all', label: 'All' },

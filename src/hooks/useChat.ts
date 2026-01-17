@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Message } from '../components/chat/types';
-import { coachParent } from '../services/ai/aiCareService';
+import { coachParent } from '../modules/recommendations';
 import { useChatContextStore, getChatContext } from '../stores/chatContextStore';
 
 interface UseChatOptions {

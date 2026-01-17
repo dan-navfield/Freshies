@@ -5,8 +5,8 @@ import { colors, spacing, radii } from '../../src/theme/tokens';
 import { Search, Camera, ChevronRight, Check, Calendar as CalendarIcon, X, Info } from 'lucide-react-native';
 import { supabase } from '../../src/lib/supabase';
 import { useAuth } from '../../src/contexts/AuthContext';
-import { shelfService } from '../../src/services/shelfService';
-import * as wishlistService from '../../src/services/wishlistService';
+import { shelfService } from '../../../src/modules/product-library';
+import * as wishlistService from '../../../src/modules/product-library';
 import DateTimePicker from '@react-native-community/datetimepicker';
 
 // This would ideally be in a separate file, reusing the ProfileOption from shelf.tsx if possible

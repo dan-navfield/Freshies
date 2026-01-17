@@ -7,7 +7,7 @@
 import * as OpenAIProvider from './providers/openai';
 import * as ClaudeProvider from './providers/claude';
 import * as MistralProvider from './providers/mistral';
-import { getEffectiveAIProvider } from '../../stores/settingsStore';
+import { getEffectiveAIProvider } from '../../../src/modules/settings';
 import { isCapabilityPaused, loadActivePromptTemplate } from '../config/promptLoader';
 import {
   AnalyseIngredientsInput,

@@ -4,8 +4,8 @@ import { useState, useEffect } from 'react';
 import { colors, spacing, radii } from '../../src/theme/tokens';
 import { ChevronLeft, Trash2, Calendar, Clock, Tag, Edit2, FileText, CheckCircle, PackageCheck, Flame, BarChart2, AlertTriangle } from 'lucide-react-native';
 import { supabase } from '../../src/lib/supabase';
-import { shelfService } from '../../src/services/shelfService';
-import { usageService, UsageStats } from '../../src/services/usageService';
+import { shelfService } from '../../../src/modules/product-library';
+import { usageService, UsageStats } from '../../../src/modules/product-library';
 import { ShelfItem } from '../../src/types/shelf';
 import DetailPageHeader from '../../src/components/navigation/DetailPageHeader';
 

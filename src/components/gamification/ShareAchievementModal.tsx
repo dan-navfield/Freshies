@@ -2,8 +2,8 @@ import React, { useState } from 'react';
 import { View, Text, Modal, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
 import { X, Users, Heart, Sparkles } from 'lucide-react-native';
 import { colors, radii, spacing } from '../../theme/tokens';
-import { shareAchievement } from '../../services/familyCircleService';
-import { CELEBRATION_MESSAGES } from '../../services/familyCircleService';
+import { shareAchievement } from '../../../src/modules/identity';
+import { CELEBRATION_MESSAGES } from '../../../src/modules/identity';
 import BadgeIcon from '../badges/BadgeIcon';
 import { getAchievementRarity } from '../../utils/achievementIcons';
 

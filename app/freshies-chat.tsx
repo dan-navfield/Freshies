@@ -4,6 +4,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { colors, spacing, radii } from '../src/theme/tokens';
 import { Brain, X, Sparkles } from 'lucide-react-native';
 import { useChatContextStore } from '../src/stores/chatContextStore';
+import { useChildProfile } from '../src/contexts/ChildProfileContext';
 import { useChat } from '../src/hooks/useChat';
 
 // Components
@@ -27,9 +28,11 @@ export default function FreshiesChatScreen() {
   const lastMessageRef = useRef<View>(null);
   const [scrollToLastMessage, setScrollToLastMessage] = useState(false);
 
-  // Get context from store
+  // Get child profile from context
+  const { childProfile } = useChildProfile();
+
+  // Get chat context from store
   const {
-    activeChildProfile,
     lastScannedProduct,
     currentRoutineProducts,
   } = useChatContextStore();
@@ -43,7 +46,7 @@ export default function FreshiesChatScreen() {
     handleSend,
     handleSuggestedQuestion
   } = useChat({
-    activeChildProfile,
+    activeChildProfile: childProfile,
     autoSubmitQuestion
   });
 
@@ -106,7 +109,7 @@ export default function FreshiesChatScreen() {
           <View>
             <Text style={styles.headerTitle}>FreshiesAI</Text>
             <Text style={styles.headerSubtitle}>
-              {activeChildProfile ? `Chatting about ${activeChildProfile.name}` : 'Your skincare guide'}
+              {childProfile?.first_name ? `Chatting about ${childProfile.first_name}` : 'Your skincare guide'}
             </Text>
           </View>
         </View>

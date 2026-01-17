@@ -5,7 +5,7 @@
 
 import { router } from 'expo-router';
 import { useChatContextStore } from '../stores/chatContextStore';
-import { ProductData, ProductWithFlags, ChildProfile } from '../services/ai/types';
+import { ProductData, ProductWithFlags } from '../services/ai/types';
 
 /**
  * Navigate to chat with a scanned product in context
@@ -24,10 +24,9 @@ export function openChatWithRoutine(products: ProductWithFlags[]) {
 }
 
 /**
- * Navigate to chat with a specific child profile
+ * Navigate to chat (child profile will come from ChildProfileContext)
  */
-export function openChatWithChild(childProfile: ChildProfile) {
-  useChatContextStore.getState().setActiveChildProfile(childProfile);
+export function openChat() {
   router.push('/freshies-chat');
 }
 

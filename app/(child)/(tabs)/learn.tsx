@@ -14,16 +14,16 @@ import BadgeIcon from '../../../src/components/badges/BadgeIcon';
 import { getAchievementRarity } from '../../../src/utils/achievementIcons';
 import { useChildProfile } from '../../../src/contexts/ChildProfileContext';
 import { useAuth } from '../../../src/contexts/AuthContext';
-import { 
-  getUserPoints, 
-  getUserAchievements, 
+import {
+  getUserPoints,
+  getUserAchievements,
   getRecentActivity,
   getUserStreaks,
   type UserPoints,
   type UserAchievement,
   type ActivityLogEntry,
   type Streak
-} from '../../../src/services/gamificationService';
+} from '../../../src/modules/gamification';
 
 const { width } = Dimensions.get('window');
 
@@ -231,7 +231,7 @@ export default function LearnScreen() {
     
     // Award points for engaging with the daily tip
     if (childProfile?.id && dailyTip?.id) {
-      const { trackLearningProgress } = await import('../../../src/services/gamificationService');
+      const { trackLearningProgress } = await import('../../../src/modules/gamification');
       await trackLearningProgress(
         childProfile.id,
         'tip',

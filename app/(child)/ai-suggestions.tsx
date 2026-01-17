@@ -11,7 +11,7 @@ import {
   getSuggestionEmoji,
   getPriorityColor,
   type RoutineSuggestion,
-} from '../../src/utils/aiRoutineSuggestions';
+} from '../../src/modules/recommendations';
 import { supabase } from '../../src/lib/supabase';
 
 export default function AISuggestionsScreen() {

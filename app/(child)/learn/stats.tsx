@@ -7,18 +7,18 @@ import ShareAchievementModal from '../../../src/components/gamification/ShareAch
 import AchievementReactionsModal from '../../../src/components/gamification/AchievementReactionsModal';
 import AchievementBadge from '../../../src/components/gamification/AchievementBadge';
 import { getAchievementIconType, getAchievementRarity } from '../../../src/utils/achievementIcons';
-import { getBulkAchievementShareStatus } from '../../../src/services/familyCircleService';
+import { getBulkAchievementShareStatus } from '../../../src/modules/identity';
 import { useChildProfile } from '../../../src/contexts/ChildProfileContext';
-import { 
-  getUserPoints, 
-  getUserAchievements, 
+import {
+  getUserPoints,
+  getUserAchievements,
   getRecentActivity,
   getUserStreaks,
   type UserPoints,
   type UserAchievement,
   type ActivityLogEntry,
   type Streak
-} from '../../../src/services/gamificationService';
+} from '../../../src/modules/gamification';
 
 /**
  * Full Stats & Rewards Page
