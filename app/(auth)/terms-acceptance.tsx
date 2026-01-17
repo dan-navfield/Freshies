@@ -60,7 +60,7 @@ export default function TermsAcceptance() {
       if (profile?.role === 'child' && profile?.onboarding_completed) {
         router.replace('/(child)/welcome-splash');
       } else if (profile?.role === 'parent' && profile?.onboarding_completed) {
-        router.replace('/(tabs)');
+        router.replace('/(parent)/(tabs)');
       } else if (profile?.role === 'child' && !profile?.onboarding_completed) {
         router.replace('/(onboarding)/child-welcome');
       } else if (profile?.role === 'parent' && !profile?.onboarding_completed) {

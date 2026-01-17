@@ -21,10 +21,9 @@ export default function Index() {
   // If authenticated, redirect to appropriate dashboard
   if (session && userRole) {
     if (userRole === 'child') {
-      return <Redirect href="/(child)/home" />;
+      return <Redirect href="/(child)/(tabs)/home" />;
     } else if (userRole === 'parent') {
-      // Check if onboarding is complete if you track that
-      return <Redirect href="/(tabs)" />;
+      return <Redirect href="/(parent)/(tabs)" />;
     }
   }
 

@@ -88,7 +88,7 @@ export default function AuthCallback() {
                   await AsyncStorage.removeItem('pendingInvitationCode');
 
                   // Go to main app
-                  router.replace('/(tabs)');
+                  router.replace('/(parent)/(tabs)');
                   return;
                 }
               }
@@ -116,7 +116,7 @@ export default function AuthCallback() {
 
         if (managedChild || selfRegisteredChild) {
           // User is a child with linked device - go to main app
-          router.replace('/(tabs)');
+          router.replace('/(parent)/(tabs)');
           return;
         }
 
@@ -139,7 +139,7 @@ export default function AuthCallback() {
           }
         } else {
           // User has completed onboarding - go to main app
-          router.replace('/(tabs)');
+          router.replace('/(parent)/(tabs)');
         }
       } else {
         // No session - go back to welcome

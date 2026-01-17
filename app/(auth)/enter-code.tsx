@@ -104,7 +104,7 @@ export default function EnterCodeScreen() {
             text: 'Get Started',
             onPress: () => {
               // Navigate to main app (tabs)
-              router.replace('/(tabs)');
+              router.replace('/(parent)/(tabs)');
             },
           },
         ]

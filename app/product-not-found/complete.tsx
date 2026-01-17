@@ -63,11 +63,11 @@ export default function CompleteScreen() {
     };
 
     const handleGoHome = () => {
-        router.replace('/(tabs)/scan');
+        router.replace('/(parent)/(tabs)/scan');
     };
 
     const handleViewShelf = () => {
-        router.replace('/(tabs)/shelf');
+        router.replace('/(parent)/(tabs)/shelf');
     };
 
     const handleRetry = () => {

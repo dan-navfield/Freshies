@@ -37,7 +37,7 @@ export default function OnboardingEntry() {
       case '0-4':
       case '5-9':
         // Parent-only mode - redirect to parent app
-        router.replace('/(tabs)/');
+        router.replace('/(parent)/(tabs)/');
         break;
       case '10-12':
         router.replace('/(child)/onboarding/tween/welcome');

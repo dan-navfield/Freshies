@@ -569,7 +569,7 @@ export default function ProductResultScreen() {
                                   await deleteScannedProduct(product.id);
                                 }
                                 // Navigate back to scanner
-                                router.push('/(tabs)/scan');
+                                router.push('/(parent)/(tabs)/scan');
                               } catch (error) {
                                 console.error('Error clearing product:', error);
                                 Alert.alert('Error', 'Failed to clear product cache');

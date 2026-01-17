@@ -22,7 +22,7 @@ export default function ParentWelcomeScreen() {
         .eq('id', user.id);
       
       await refreshSession();
-      router.replace('/(tabs)');
+      router.replace('/(parent)/(tabs)');
     }
   };
 

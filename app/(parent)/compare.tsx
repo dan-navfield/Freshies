@@ -68,7 +68,7 @@ export default function CompareScreen() {
       'Scan a product or search to add it to comparison',
       [
         { text: 'Cancel', style: 'cancel' },
-        { text: 'Scan Product', onPress: () => router.push('/(tabs)/scan') },
+        { text: 'Scan Product', onPress: () => router.push('/(parent)/(tabs)/scan') },
       ]
     );
   };

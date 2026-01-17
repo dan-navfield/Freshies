@@ -43,7 +43,7 @@ export default function ChildSuccessScreen() {
     
     // Small delay for UX
     setTimeout(() => {
-      router.replace('/(tabs)');
+      router.replace('/(parent)/(tabs)');
     }, 500);
   };
 
