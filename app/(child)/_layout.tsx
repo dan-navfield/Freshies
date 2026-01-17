@@ -29,12 +29,10 @@ export default function ChildLayout() {
         <Stack.Screen name="account" options={{ headerShown: false }} />
         <Stack.Screen name="skin-profile" options={{ headerShown: false }} />
         <Stack.Screen name="avatar-selector" options={{ headerShown: false }} />
-        <Stack.Screen name="achievements" options={{ headerShown: false }} />
         <Stack.Screen name="achievements-enhanced" options={{ headerShown: false }} />
         <Stack.Screen name="freshie-gallery" options={{ headerShown: false }} />
         <Stack.Screen name="help" options={{ headerShown: false }} />
         <Stack.Screen name="safety" options={{ headerShown: false }} />
-        <Stack.Screen name="routine-builder" options={{ headerShown: false }} />
         <Stack.Screen name="routine-builder-enhanced" options={{ headerShown: false }} />
         <Stack.Screen name="routines" options={{ headerShown: false }} />
       </Stack>
