@@ -3,7 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet, TextInput, Keyboard } from 'r
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { ChevronLeft, Search } from 'lucide-react-native';
-import { colors, spacing, radii } from '../theme/tokens';
+import { colors, spacing, radii } from '../../theme/tokens';
 import GlobalSearchOverlay from './GlobalSearch/GlobalSearchOverlay';
 
 interface SubPageHeaderProps {

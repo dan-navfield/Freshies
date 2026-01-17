@@ -2,7 +2,7 @@ import React, { useState, useRef } from 'react';
 import { View, TouchableOpacity, Text, StyleSheet, Animated, Easing, Dimensions, TouchableWithoutFeedback } from 'react-native';
 import { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { Home, ScanBarcode, BookOpen, Sparkles, History, Package, ShoppingBag, Leaf, X } from 'lucide-react-native';
-import { colors, spacing, radii } from '../theme/tokens';
+import { colors, spacing, radii } from '../../theme/tokens';
 import { useRouter } from 'expo-router';
 
 const { width, height } = Dimensions.get('window');

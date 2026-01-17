@@ -1,7 +1,7 @@
 import { View, Text, Pressable, StyleSheet, Image, TextInput, Keyboard } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { colors, radii, spacing } from '../theme/tokens';
+import { colors, radii, spacing } from '../../theme/tokens';
 import { User, Search, Bell, ChevronLeft } from 'lucide-react-native';
 import { useAuth } from '../contexts/AuthContext';
 import { useChildProfile } from '../contexts/ChildProfileContext';

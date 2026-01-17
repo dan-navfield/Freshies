@@ -1,7 +1,7 @@
 import { View, Text, Pressable, StyleSheet, Image, ScrollView, Modal } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import { colors, radii, spacing } from '../theme/tokens';
+import { colors, radii, spacing } from '../../theme/tokens';
 import { ChildProfile } from '../types/family';
 import { User, Activity, Settings, X } from 'lucide-react-native';
 
