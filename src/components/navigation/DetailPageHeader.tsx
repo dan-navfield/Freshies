@@ -2,9 +2,9 @@ import { View, Text, Pressable, StyleSheet, Image } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { colors, radii, spacing } from '../../theme/tokens';
 import { ChevronLeft, Settings } from 'lucide-react-native';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '../../contexts/AuthContext';
 import { useState, useEffect, useCallback } from 'react';
-import { supabase } from '../lib/supabase';
+import { supabase } from '../../lib/supabase';
 
 interface DetailPageHeaderProps {
   title: string;

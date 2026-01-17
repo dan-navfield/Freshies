@@ -3,11 +3,11 @@ import { useRouter, useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, radii, spacing } from '../../theme/tokens';
 import { User, Search, Bell, ChevronLeft } from 'lucide-react-native';
-import { useAuth } from '../contexts/AuthContext';
-import { useChildProfile } from '../contexts/ChildProfileContext';
-import { supabase } from '../lib/supabase';
+import { useAuth } from '../../contexts/AuthContext';
+import { useChildProfile } from '../../contexts/ChildProfileContext';
+import { supabase } from '../../lib/supabase';
 import { useState, useCallback } from 'react';
-import { useAuthStore } from '../stores';
+import { useAuthStore } from '../../stores';
 
 import GlobalSearchOverlay from './GlobalSearch/GlobalSearchOverlay';
 

@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
-import { useNavigationConfig } from '../config/navigationConfig';
+import { useNavigationConfig } from '../../config/navigationConfig';
 import CustomTabBar from './CustomTabBar';
 import { usePathname, useSegments } from 'expo-router';
 

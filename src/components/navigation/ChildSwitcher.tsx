@@ -2,7 +2,7 @@ import { View, Text, Pressable, StyleSheet, Image, ScrollView, Modal } from 'rea
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { colors, radii, spacing } from '../../theme/tokens';
-import { ChildProfile } from '../types/family';
+import { ChildProfile } from '../../types/family';
 import { User, Activity, Settings, X } from 'lucide-react-native';
 
 interface ChildSwitcherProps {
