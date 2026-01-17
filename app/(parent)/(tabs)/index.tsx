@@ -1,18 +1,18 @@
 import { View, Text, ScrollView, Pressable, StyleSheet, Image } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { colors, radii, spacing } from '../../src/theme/tokens';
-import { globalStyles } from '../../src/theme/styles';
-import { useAuth } from '../../src/contexts/AuthContext';
+import { colors, radii, spacing } from '../../../src/theme/tokens';
+import { globalStyles } from '../../../src/theme/styles';
+import { useAuth } from '../../../src/contexts/AuthContext';
 import { AlertCircle, CheckCircle, Clock, TrendingUp, Star, Smile, Frown, Meh, Users, ChevronRight, Bell } from 'lucide-react-native';
-import { searchProductsByName, lookupProductByBarcode } from '../../src/services/api/openBeautyFacts';
-import { searchMakeupByBrand } from '../../src/services/makeup/makeupApi';
-import PageHeader from '../../src/components/navigation/PageHeader';
-import FloatingAIButton from '../../src/components/FloatingAIButton';
-import ChildSwitcher from '../../src/components/navigation/ChildSwitcher';
-import { getChildren } from '../../src/services/familyService';
-import { ChildProfile } from '../../src/types/family';
-import { supabase } from '../../src/lib/supabase';
+import { searchProductsByName, lookupProductByBarcode } from '../../../src/services/api/openBeautyFacts';
+import { searchMakeupByBrand } from '../../../src/services/makeup/makeupApi';
+import PageHeader from '../../../src/components/navigation/PageHeader';
+import FloatingAIButton from '../../../src/components/FloatingAIButton';
+import ChildSwitcher from '../../../src/components/navigation/ChildSwitcher';
+import { getChildren } from '../../../src/services/familyService';
+import { ChildProfile } from '../../../src/types/family';
+import { supabase } from '../../../src/lib/supabase';
 
 // Mock data - replace with real data from your backend
 const MOCK_CHILDREN = [

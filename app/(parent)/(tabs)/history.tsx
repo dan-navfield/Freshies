@@ -2,10 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, ScrollView, Image, TouchableOpacity, StyleSheet, Dimensions, RefreshControl } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import { X, Star, AlertCircle, ShoppingBag, Share2, MessageSquare, ThumbsUp } from 'lucide-react-native';
-import { colors, spacing, radii } from '../../src/theme/tokens';
-import { getScannedProducts, ScannedProduct } from '../../src/services/storage/scannedProducts';
-import PageHeader from '../../src/components/navigation/PageHeader';
-import FloatingAIButton from '../../src/components/FloatingAIButton';
+import { colors, spacing, radii } from '../../../src/theme/tokens';
+import { getScannedProducts, ScannedProduct } from '../../../src/services/storage/scannedProducts';
+import PageHeader from '../../../src/components/navigation/PageHeader';
+import FloatingAIButton from '../../../src/components/FloatingAIButton';
 
 const { width } = Dimensions.get('window');
 

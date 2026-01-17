@@ -2,18 +2,18 @@ import { View, Text, StyleSheet, ScrollView, Pressable, Image, ActivityIndicator
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
-import { useAuth } from '../../src/contexts/AuthContext';
-import { supabase } from '../../src/lib/supabase';
-import { shelfService } from '../../src/services/shelfService';
-import { ShelfItem } from '../../src/types/shelf';
-import { colors, spacing, radii } from '../../src/theme/tokens';
+import { useAuth } from '../../../src/contexts/AuthContext';
+import { supabase } from '../../../src/lib/supabase';
+import { shelfService } from '../../../src/services/shelfService';
+import { ShelfItem } from '../../../src/types/shelf';
+import { colors, spacing, radii } from '../../../src/theme/tokens';
 import { Plus, AlertCircle, Package, User, Baby, Heart, Clock, CheckCircle, ArrowUpDown, Check, ShoppingBag } from 'lucide-react-native';
-import PageHeader from '../../src/components/navigation/PageHeader';
-import WishlistCard from '../../src/components/product/WishlistCard';
-import WishlistStatusBadge from '../../src/components/product/WishlistStatusBadge';
-import ApprovalRequestModal from '../../src/components/modals/ApprovalRequestModal';
-import { getWishlistItems, getWishlistStats, removeFromWishlist, requestApproval } from '../../src/services/wishlistService';
-import type { WishlistItem, WishlistStats, WishlistStatus } from '../../src/types/wishlist';
+import PageHeader from '../../../src/components/navigation/PageHeader';
+import WishlistCard from '../../../src/components/product/WishlistCard';
+import WishlistStatusBadge from '../../../src/components/product/WishlistStatusBadge';
+import ApprovalRequestModal from '../../../src/components/modals/ApprovalRequestModal';
+import { getWishlistItems, getWishlistStats, removeFromWishlist, requestApproval } from '../../../src/services/wishlistService';
+import type { WishlistItem, WishlistStats, WishlistStatus } from '../../../src/types/wishlist';
 
 interface ProfileOption {
     id: string; // 'parent' or childUUID

@@ -1,13 +1,13 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, RefreshControl, Image, TouchableOpacity, Pressable, ActivityIndicator } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
-import { useAuth } from '../../src/contexts/AuthContext';
-import { supabase } from '../../src/lib/supabase';
-import { routineService, CustomRoutine } from '../../src/services/routineService';
-import { colors, radii, spacing } from '../../src/theme/tokens';
+import { useAuth } from '../../../src/contexts/AuthContext';
+import { supabase } from '../../../src/lib/supabase';
+import { routineService, CustomRoutine } from '../../../src/services/routineService';
+import { colors, radii, spacing } from '../../../src/theme/tokens';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import PageHeader from '../../src/components/navigation/PageHeader';
+import PageHeader from '../../../src/components/navigation/PageHeader';
 import { AlertTriangle, CheckCircle, Clock, TrendingUp, Users, Baby, ChevronRight, ChevronLeft, Sun, Moon, Eye } from 'lucide-react-native';
 
 interface ManagedChild {
