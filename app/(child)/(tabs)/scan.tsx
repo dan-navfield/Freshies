@@ -379,27 +379,20 @@ export default function ChildScanScreen() {
   };
 
   const handleCapturePhoto = async () => {
-    try {
-      // Check if we can use camera
-      const { status } = await ImagePicker.requestCameraPermissionsAsync();
-      if (status !== 'granted') {
-        Alert.alert(
-          'Camera Permission Required',
-          'Please allow camera access to capture product photos.',
-          [{ text: 'OK' }]
-        );
-        return;
-      }
+    if (!cameraRef.current) {
+      Alert.alert('Camera Error', 'Camera is not ready. Please try again.');
+      return;
+    }
 
-      const result = await ImagePicker.launchCameraAsync({
-        mediaTypes: ['images'],
-        allowsEditing: true,
-        aspect: [3, 4],
+    try {
+      // Capture photo from the live camera view
+      const photo = await cameraRef.current.takePictureAsync({
         quality: 1,
+        skipProcessing: false,
       });
 
-      if (!result.canceled && result.assets[0]) {
-        const imageUri = result.assets[0].uri;
+      if (photo?.uri) {
+        const imageUri = photo.uri;
         setLoading(true);
         resetSteps();
 

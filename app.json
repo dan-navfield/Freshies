@@ -30,6 +30,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.freshies.app",
+      "buildNumber": "6",
       "usesAppleSignIn": true,
       "infoPlist": {
         "NSPhotoLibraryUsageDescription": "Freshies needs access to your photo library to scan product barcodes from existing images.",
