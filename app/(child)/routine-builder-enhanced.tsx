@@ -24,9 +24,9 @@ import { useAuth } from '../../src/contexts/AuthContext';
 import { supabase } from '../../src/lib/supabase';
 import { routineService, CustomRoutine, RoutineStepData } from '../../src/services/routineService';
 import { routineTemplateService, RoutineStepTemplate } from '../../src/services/routineTemplateService';
-import DetailPageHeader from '../../src/components/DetailPageHeader';
-import GamificationBand from '../../src/components/GamificationBand';
-import ProductSelectorModal from '../../src/components/ProductSelectorModal';
+import DetailPageHeader from '../../src/components/navigation/DetailPageHeader';
+import GamificationBand from '../../src/components/gamification/GamificationBand';
+import ProductSelectorModal from '../../src/components/product/ProductSelectorModal';
 
 const { width } = Dimensions.get('window');
 

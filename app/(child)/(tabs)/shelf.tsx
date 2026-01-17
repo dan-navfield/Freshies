@@ -10,10 +10,10 @@ import { WishlistItem, WishlistStats, WishlistStatus, WishlistGroup } from '../.
 import { colors, spacing, radii } from '../../../src/theme/tokens';
 import { Plus, AlertCircle, Package, Heart, ShoppingBag, FolderHeart, ChevronRight, AlertTriangle, ArrowUpDown, Check, X } from 'lucide-react-native';
 import { usageService } from '../../../src/services/usageService';
-import PageHeader from '../../../src/components/PageHeader';
-import WishlistCard from '../../../src/components/WishlistCard';
-import ApprovalRequestModal from '../../../src/components/ApprovalRequestModal';
-import AddToGroupModal from '../../../src/components/AddToGroupModal';
+import PageHeader from '../../../src/components/navigation/PageHeader';
+import WishlistCard from '../../../src/components/product/WishlistCard';
+import ApprovalRequestModal from '../../../src/components/modals/ApprovalRequestModal';
+import AddToGroupModal from '../../../src/components/modals/AddToGroupModal';
 import ExpiryRing from '../../../src/components/ExpiryRing';
 import { useChildProfile } from '../../../src/contexts/ChildProfileContext';
 import { useAuth } from '../../../src/contexts/AuthContext';

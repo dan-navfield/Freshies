@@ -4,7 +4,7 @@ import { useRouter } from 'expo-router';
 import { ChevronLeft, ChevronRight, Trash2, Share2, Calendar, Plus, Camera, Image as ImageIcon, Filter, Search, X, Edit2, Star, Download, Tag } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import DetailPageHeader from '../../src/components/DetailPageHeader';
+import DetailPageHeader from '../../src/components/navigation/DetailPageHeader';
 import { colors, spacing, radii } from '../../src/theme/tokens';
 import { useAuth } from '../../src/contexts/AuthContext';
 import { supabase } from '../../src/lib/supabase';

@@ -2,8 +2,8 @@ import React from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image } from 'react-native';
 import { useRouter } from 'expo-router';
 import { CheckCircle, MessageSquare } from 'lucide-react-native';
-import PageHeader from '../../src/components/PageHeader';
-import GamificationBand from '../../src/components/GamificationBand';
+import PageHeader from '../../src/components/navigation/PageHeader';
+import GamificationBand from '../../src/components/gamification/GamificationBand';
 import { colors, spacing, radii } from '../../src/theme/tokens';
 
 /**

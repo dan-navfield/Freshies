@@ -14,7 +14,7 @@ import { Camera, Image as ImageIcon, Trash2, Check, X } from 'lucide-react-nativ
 import { colors, spacing, radii } from '../../src/theme/tokens';
 import { useAuth } from '../../src/contexts/AuthContext';
 import { supabase } from '../../src/lib/supabase';
-import PageHeader from '../../src/components/PageHeader';
+import PageHeader from '../../src/components/navigation/PageHeader';
 import {
   uploadAvatar,
   pickImageFromCamera,

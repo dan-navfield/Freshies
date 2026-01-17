@@ -8,7 +8,7 @@ import { getPendingApprovals, getApprovalStats, approveProduct, declineProduct }
 import { getPendingWishlistApprovals, approveWishlistItem, declineWishlistItem } from '../../../src/services/wishlistService';
 import { ApprovalWithDetails, ApprovalStats, SEVERITY_CONFIG } from '../../../src/types/approval';
 import { WishlistItem } from '../../../src/types/wishlist';
-import WishlistStatusBadge from '../../../src/components/WishlistStatusBadge';
+import WishlistStatusBadge from '../../../src/components/product/WishlistStatusBadge';
 
 export default function ApprovalsScreen() {
   const router = useRouter();

@@ -8,7 +8,7 @@ import { shelfService } from '../../src/services/shelfService';
 import { ShelfItem } from '../../src/types/shelf';
 import { useChildProfile } from '../../src/contexts/ChildProfileContext';
 import { useAuth } from '../../src/contexts/AuthContext';
-import DetailPageHeader from '../../src/components/DetailPageHeader';
+import DetailPageHeader from '../../src/components/navigation/DetailPageHeader';
 
 export default function HistoryScreen() {
     const router = useRouter();

@@ -5,7 +5,7 @@ import { Calendar, ChevronLeft, ChevronRight, Sunrise, Sun, Moon, Flame } from '
 import { colors, spacing, radii } from '../../src/theme/tokens';
 import { supabase } from '../../src/lib/supabase';
 import { useChildProfile } from '../../src/contexts/ChildProfileContext';
-import DetailPageHeader from '../../src/components/DetailPageHeader';
+import DetailPageHeader from '../../src/components/navigation/DetailPageHeader';
 
 interface DayData {
   date: string;

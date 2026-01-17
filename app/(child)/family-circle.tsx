@@ -5,7 +5,7 @@ import { Users, Heart, Star, Sparkles, Shield } from 'lucide-react-native';
 import { colors, radii, spacing } from '../../src/theme/tokens';
 import { useAuth } from '../../src/contexts/AuthContext';
 import { supabase } from '../../src/lib/supabase';
-import DetailPageHeader from '../../src/components/DetailPageHeader';
+import DetailPageHeader from '../../src/components/navigation/DetailPageHeader';
 
 interface FamilyMember {
   id: string;

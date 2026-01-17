@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet } from 'react-native';
 import { Sun, Droplets, Moon, Sparkles, Heart, Shield, Star } from 'lucide-react-native';
 import { colors, spacing, radii } from '../../../src/theme/tokens';
-import SubPageHeader from '../../../src/components/SubPageHeader';
+import SubPageHeader from '../../../src/components/navigation/SubPageHeader';
 import { useChildProfile } from '../../../src/contexts/ChildProfileContext';
 import { trackLearningProgress } from '../../../src/services/gamificationService';
 import { supabase } from '../../../src/lib/supabase';

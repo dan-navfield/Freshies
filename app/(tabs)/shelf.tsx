@@ -8,10 +8,10 @@ import { shelfService } from '../../src/services/shelfService';
 import { ShelfItem } from '../../src/types/shelf';
 import { colors, spacing, radii } from '../../src/theme/tokens';
 import { Plus, AlertCircle, Package, User, Baby, Heart, Clock, CheckCircle, ArrowUpDown, Check, ShoppingBag } from 'lucide-react-native';
-import PageHeader from '../../src/components/PageHeader';
-import WishlistCard from '../../src/components/WishlistCard';
-import WishlistStatusBadge from '../../src/components/WishlistStatusBadge';
-import ApprovalRequestModal from '../../src/components/ApprovalRequestModal';
+import PageHeader from '../../src/components/navigation/PageHeader';
+import WishlistCard from '../../src/components/product/WishlistCard';
+import WishlistStatusBadge from '../../src/components/product/WishlistStatusBadge';
+import ApprovalRequestModal from '../../src/components/modals/ApprovalRequestModal';
 import { getWishlistItems, getWishlistStats, removeFromWishlist, requestApproval } from '../../src/services/wishlistService';
 import type { WishlistItem, WishlistStats, WishlistStatus } from '../../src/types/wishlist';
 

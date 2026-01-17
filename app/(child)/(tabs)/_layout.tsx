@@ -1,5 +1,5 @@
 import { Tabs } from 'expo-router';
-import { CustomTabBar } from '../../../src/components/CustomTabBar';
+import { CustomTabBar } from '../../../src/components/navigation/CustomTabBar';
 
 /**
  * Tab Navigator for main app screens

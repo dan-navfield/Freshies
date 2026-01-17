@@ -7,7 +7,7 @@ import { supabase } from '../../src/lib/supabase';
 import { shelfService } from '../../src/services/shelfService';
 import { usageService, UsageStats } from '../../src/services/usageService';
 import { ShelfItem } from '../../src/types/shelf';
-import DetailPageHeader from '../../src/components/DetailPageHeader';
+import DetailPageHeader from '../../src/components/navigation/DetailPageHeader';
 
 export default function ShelfItemDetail() {
     const { id } = useLocalSearchParams();

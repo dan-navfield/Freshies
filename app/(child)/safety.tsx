@@ -1,7 +1,7 @@
 import { View, Text, ScrollView, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
 import { colors, radii, spacing } from '../../src/theme/tokens';
-import DetailPageHeader from '../../src/components/DetailPageHeader';
+import DetailPageHeader from '../../src/components/navigation/DetailPageHeader';
 import { 
   Shield, 
   Lock, 

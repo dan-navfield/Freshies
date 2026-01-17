@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { colors, radii, spacing } from '../../src/theme/tokens';
 import { globalStyles } from '../../src/theme/styles';
 import { BookOpen, Droplet, Package, Shield, Users, Brain, Sparkles, Clock, TrendingUp } from 'lucide-react-native';
-import PageHeader from '../../src/components/PageHeader';
+import PageHeader from '../../src/components/navigation/PageHeader';
 import { supabase } from '../../src/lib/supabase';
 import FloatingAIButton from '../../src/components/FloatingAIButton';
 

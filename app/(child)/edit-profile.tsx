@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { colors, radii, spacing } from '../../src/theme/tokens';
 import { useAuth } from '../../src/contexts/AuthContext';
 import { supabase } from '../../src/lib/supabase';
-import DetailPageHeader from '../../src/components/DetailPageHeader';
+import DetailPageHeader from '../../src/components/navigation/DetailPageHeader';
 import { User, MessageSquare, Save, X, Camera } from 'lucide-react-native';
 
 export default function EditProfileScreen() {

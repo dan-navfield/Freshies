@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, ScrollView, StyleSheet } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { globalStyles } from '../../../src/theme/styles';
-import SubPageHeader from '../../../src/components/SubPageHeader';
+import SubPageHeader from '../../../src/components/navigation/SubPageHeader';
 import { colors, spacing } from '../../../src/theme/tokens';
 
 export default function LearnArticleScreen() {

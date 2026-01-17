@@ -5,11 +5,11 @@ import { BookOpen, Sparkles, Brain, Trophy, ChevronRight, Droplets, Sun, Heart, 
 import { colors, spacing, radii } from '../../../src/theme/tokens';
 import { globalStyles } from '../../../src/theme/styles';
 import { supabase } from '../../../src/lib/supabase';
-import PageHeader from '../../../src/components/PageHeader';
-import BadgeUnlockModal from '../../../src/components/BadgeUnlockModal';
-import LevelUpModal from '../../../src/components/LevelUpModal';
-import LevelProgressBar from '../../../src/components/LevelProgressBar';
-import StreakCard from '../../../src/components/StreakCard';
+import PageHeader from '../../../src/components/navigation/PageHeader';
+import BadgeUnlockModal from '../../../src/components/gamification/BadgeUnlockModal';
+import LevelUpModal from '../../../src/components/gamification/LevelUpModal';
+import LevelProgressBar from '../../../src/components/gamification/LevelProgressBar';
+import StreakCard from '../../../src/components/gamification/StreakCard';
 import BadgeIcon from '../../../src/components/badges/BadgeIcon';
 import { getAchievementRarity } from '../../../src/utils/achievementIcons';
 import { useChildProfile } from '../../../src/contexts/ChildProfileContext';

@@ -6,7 +6,7 @@ import { CustomRoutine } from '../../../src/services/routineService';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, radii, spacing } from '../../../src/theme/tokens';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import PageHeader from '../../../src/components/PageHeader';
+import PageHeader from '../../../src/components/navigation/PageHeader';
 import { ChevronLeft } from 'lucide-react-native';
 
 export default function ParentRoutineDetailScreen() {

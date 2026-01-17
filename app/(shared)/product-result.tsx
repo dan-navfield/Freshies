@@ -16,7 +16,7 @@ import { getProductReviews, markReviewHelpful, createReview, rateProduct, getPro
 import { addToWishlist, isInWishlist, removeFromWishlist } from '../../src/services/wishlistService';
 import type { WishlistItem } from '../../src/types/wishlist';
 import type { ReviewWithContext, CreateReviewRequest, ProductReviewSummary } from '../../src/types/reviews';
-import ReviewSubmissionModal from '../../src/components/ReviewSubmissionModal';
+import ReviewSubmissionModal from '../../src/components/modals/ReviewSubmissionModal';
 import ReviewStatistics from '../../src/components/ReviewStatistics';
 import { clearPromptCache } from '../../src/services/config/promptLoader';
 

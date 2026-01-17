@@ -23,7 +23,7 @@ import {
   Edit3
 } from 'lucide-react-native';
 import { supabase } from '../../src/lib/supabase';
-import DetailPageHeader from '../../src/components/DetailPageHeader';
+import DetailPageHeader from '../../src/components/navigation/DetailPageHeader';
 
 export default function ChildAccountScreen() {
   const router = useRouter();

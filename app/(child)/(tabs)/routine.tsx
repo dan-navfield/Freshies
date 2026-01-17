@@ -4,12 +4,12 @@ import { useRouter, useFocusEffect } from 'expo-router';
 import { Sun, Moon, Sunrise, Clock, Play, ChevronLeft, ChevronRight, Check, Settings, Calendar } from 'lucide-react-native';
 import { colors, spacing, radii } from '../../../src/theme/tokens';
 import { supabase } from '../../../src/lib/supabase';
-import GamificationBand from '../../../src/components/GamificationBand';
-import PageHeader from '../../../src/components/PageHeader';
+import GamificationBand from '../../../src/components/gamification/GamificationBand';
+import PageHeader from '../../../src/components/navigation/PageHeader';
 import { useChildProfile } from '../../../src/contexts/ChildProfileContext';
 import { useAuth } from '../../../src/contexts/AuthContext';
-import RoutineBottomSheet from '../../../src/components/RoutineBottomSheet';
-import SwipeableRoutineCard from '../../../src/components/SwipeableRoutineCard';
+import RoutineBottomSheet from '../../../src/components/routine/RoutineBottomSheet';
+import SwipeableRoutineCard from '../../../src/components/routine/SwipeableRoutineCard';
 import { StyleSheet, Alert } from 'react-native';
 import {
   setupNotificationResponseHandler,

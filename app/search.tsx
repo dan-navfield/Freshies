@@ -9,7 +9,7 @@ import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Search, SlidersHorizontal, X, ArrowLeft } from 'lucide-react-native';
 import { colors, spacing, radii } from '../src/theme/tokens';
-import ProductFilters from '../src/components/ProductFilters';
+import ProductFilters from '../src/components/product/ProductFilters';
 import type { ProductFilters as FilterType } from '../src/types/filters';
 
 export default function SearchScreen() {

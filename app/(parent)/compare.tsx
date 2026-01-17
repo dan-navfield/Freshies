@@ -9,7 +9,7 @@ import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ArrowLeft, Plus } from 'lucide-react-native';
 import { colors, spacing, radii } from '../../src/theme/tokens';
-import ProductComparison from '../../src/components/ProductComparison';
+import ProductComparison from '../../src/components/product/ProductComparison';
 import type { ComparisonProduct } from '../../src/types/comparison';
 
 export default function CompareScreen() {

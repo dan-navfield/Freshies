@@ -9,8 +9,8 @@ import {
   Image,
 } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
-import DetailPageHeader from '../../src/components/DetailPageHeader';
-import GamificationBand from '../../src/components/GamificationBand';
+import DetailPageHeader from '../../src/components/navigation/DetailPageHeader';
+import GamificationBand from '../../src/components/gamification/GamificationBand';
 import { useChildProfile } from '../../src/contexts/ChildProfileContext';
 import { routineService } from '../../src/services/routineService';
 import { colors, spacing, radii } from '../../src/theme/tokens';

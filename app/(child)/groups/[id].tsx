@@ -25,7 +25,7 @@ import {
     removeItemFromGroup,
 } from '../../../src/services/wishlistService';
 import { WishlistGroup, WishlistItem } from '../../../src/types/wishlist';
-import WishlistCard from '../../../src/components/WishlistCard';
+import WishlistCard from '../../../src/components/product/WishlistCard';
 
 export default function WishlistGroupDetailScreen() {
     const router = useRouter();

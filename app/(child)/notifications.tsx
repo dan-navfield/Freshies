@@ -7,7 +7,7 @@ import { useAuth } from '../../src/contexts/AuthContext';
 import { supabase } from '../../src/lib/supabase';
 import { markNotificationRead } from '../../src/utils/approvalHelpers';
 import { StyleSheet } from 'react-native';
-import DetailPageHeader from '../../src/components/DetailPageHeader';
+import DetailPageHeader from '../../src/components/navigation/DetailPageHeader';
 
 interface Notification {
   id: string;

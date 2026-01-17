@@ -10,9 +10,9 @@ import { scanBarcodeFromImage } from '../../../src/services/barcode/imageScanner
 import { extractTextFromImage, createSearchQueryFromIngredients, extractProductName } from '../../../src/services/ocr/ingredientScanner';
 import { scanProduct, uploadImage } from '../../../src/services/freshiesBackend';
 import { identifyProductFromImage } from '../../../src/services/ai/aiVisionProductIdentifier';
-import ProductSearchModal from '../../../src/components/ProductSearchModal';
-import ScanProgressOverlay, { ScanStep } from '../../../src/components/ScanProgressOverlay';
-import LiveDetectionOverlay from '../../../src/components/LiveDetectionOverlay';
+import ProductSearchModal from '../../../src/components/product/ProductSearchModal';
+import ScanProgressOverlay, { ScanStep } from '../../../src/components/camera/ScanProgressOverlay';
+import LiveDetectionOverlay from '../../../src/components/camera/LiveDetectionOverlay';
 import { LiveDetectionResult, LiveDetectionManager } from '../../../src/services/camera/liveDetectionService';
 
 const { width } = Dimensions.get('window');

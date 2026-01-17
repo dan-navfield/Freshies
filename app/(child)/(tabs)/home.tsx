@@ -11,13 +11,13 @@ import { colors, radii, spacing } from '../../../src/theme/tokens';
 import { globalStyles } from '../../../src/theme/styles';
 import { useAuth } from '../../../src/contexts/AuthContext';
 import { supabase } from '../../../src/lib/supabase';
-import PageHeader from '../../../src/components/PageHeader';
+import PageHeader from '../../../src/components/navigation/PageHeader';
 import FloatingAIButton from '../../../src/components/FloatingAIButton';
 import { childHomeStyles } from '../../../src/styles/child/tabs/home-styles';
 import { ShelfItem } from '../../../src/types/shelf';
 import { shelfService } from '../../../src/services/shelfService';
 import ExpiryRing from '../../../src/components/ExpiryRing';
-import GamificationBand from '../../../src/components/GamificationBand';
+import GamificationBand from '../../../src/components/gamification/GamificationBand';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 

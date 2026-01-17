@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { colors, spacing, radii } from '../../src/theme/tokens';
-import SubPageHeader from '../../src/components/SubPageHeader';
+import SubPageHeader from '../../src/components/navigation/SubPageHeader';
 import { searchService, SearchGroup, SearchResult } from '../../src/services/searchService';
 import { useAuth } from '../../src/contexts/AuthContext';
 import { useChildProfile } from '../../src/contexts/ChildProfileContext';

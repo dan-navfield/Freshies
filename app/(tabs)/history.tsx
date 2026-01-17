@@ -4,7 +4,7 @@ import { router, useFocusEffect } from 'expo-router';
 import { X, Star, AlertCircle, ShoppingBag, Share2, MessageSquare, ThumbsUp } from 'lucide-react-native';
 import { colors, spacing, radii } from '../../src/theme/tokens';
 import { getScannedProducts, ScannedProduct } from '../../src/services/storage/scannedProducts';
-import PageHeader from '../../src/components/PageHeader';
+import PageHeader from '../../src/components/navigation/PageHeader';
 import FloatingAIButton from '../../src/components/FloatingAIButton';
 
 const { width } = Dimensions.get('window');

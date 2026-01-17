@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { ChevronLeft } from 'lucide-react-native';
-import DetailPageHeader from '../../../src/components/DetailPageHeader';
+import DetailPageHeader from '../../../src/components/navigation/DetailPageHeader';
 import { colors, spacing, radii } from '../../../src/theme/tokens';
 import { useAuth } from '../../../src/contexts/AuthContext';
 import { supabase } from '../../../src/lib/supabase';

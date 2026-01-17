@@ -3,7 +3,7 @@ import { View, Text, ScrollView, TouchableOpacity, StyleSheet, TextInput } from 
 import { Search, Droplets, Shield, AlertCircle, CheckCircle, Sparkles } from 'lucide-react-native';
 import { colors, spacing, radii } from '../../../src/theme/tokens';
 import { supabase } from '../../../src/lib/supabase';
-import SubPageHeader from '../../../src/components/SubPageHeader';
+import SubPageHeader from '../../../src/components/navigation/SubPageHeader';
 
 interface IngredientInfo {
   id: string;
