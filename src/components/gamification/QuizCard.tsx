@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { CheckCircle, XCircle, Award } from 'lucide-react-native';
-import { colors, spacing, radii } from '../theme/tokens';
+import { colors, spacing, radii } from '../../theme/tokens';
 
 interface QuizQuestion {
   question: string;

@@ -2,7 +2,7 @@ import React, { useState, useRef } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Modal, Image, Alert } from 'react-native';
 import { CameraView, CameraType, useCameraPermissions } from 'expo-camera';
 import { Camera, X, RotateCcw, Check, Wand2 } from 'lucide-react-native';
-import { colors, spacing, radii } from '../theme/tokens';
+import { colors, spacing, radii } from '../../theme/tokens';
 import FreshieEditor from './FreshieEditor';
 
 interface FreshieCameraProps {

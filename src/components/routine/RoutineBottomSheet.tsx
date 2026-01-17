@@ -1,16 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, Modal, StyleSheet, Animated, Dimensions, Alert } from 'react-native';
 import { X, Check, Camera, Clock } from 'lucide-react-native';
-import { colors, spacing, radii } from '../theme/tokens';
-import { supabase } from '../lib/supabase';
-import { useAuth } from '../contexts/AuthContext';
-import { useChildProfile } from '../contexts/ChildProfileContext';
+import { colors, spacing, radii } from '../../theme/tokens';
+import { supabase } from '../../lib/supabase';
+import { useAuth } from '../../contexts/AuthContext';
+import { useChildProfile } from '../../contexts/ChildProfileContext';
 import FreshieCamera from './FreshieCamera';
 import RoutineGuideModal from './RoutineGuideModal';
 import RoutineCompletionCelebration from './RoutineCompletionCelebration';
-import { routineService } from '../services/routineService';
-import { calculateStreak, awardRoutinePoints } from '../services/streakService';
-import { usageService } from '../services/usageService';
+import { routineService } from '../../services/routineService';
+import { calculateStreak, awardRoutinePoints } from '../../services/streakService';
+import { usageService } from '../../services/usageService';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 

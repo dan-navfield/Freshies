@@ -5,8 +5,8 @@
 
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Switch } from 'react-native';
 import { ChevronDown, ChevronUp, X } from 'lucide-react-native';
-import { colors, spacing, radii } from '../theme/tokens';
-import type { ProductFilters, FilterGroup } from '../types/filters';
+import { colors, spacing, radii } from '../../theme/tokens';
+import type { ProductFilters, FilterGroup } from '../../types/filters';
 import { useState } from 'react';
 
 interface ProductFiltersProps {

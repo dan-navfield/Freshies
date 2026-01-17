@@ -9,7 +9,7 @@ import { supabase } from '../../lib/supabase';
 import { useState, useCallback } from 'react';
 import { useAuthStore } from '../../stores';
 
-import GlobalSearchOverlay from './GlobalSearch/GlobalSearchOverlay';
+import GlobalSearchOverlay from '../GlobalSearch/GlobalSearchOverlay';
 
 interface PageHeaderProps {
   title: string;

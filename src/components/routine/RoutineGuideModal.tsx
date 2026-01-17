@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, Modal, TouchableOpacity, Animated, Dimensions, StyleSheet, ScrollView, Image } from 'react-native';
 import { X, Play, Pause, SkipForward, Check, ChevronLeft, ChevronRight } from 'lucide-react-native';
-import { colors, spacing, radii } from '../theme/tokens';
+import { colors, spacing, radii } from '../../theme/tokens';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 

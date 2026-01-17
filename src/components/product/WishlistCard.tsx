@@ -6,8 +6,8 @@
 import React from 'react';
 import { View, Text, StyleSheet, Image, Pressable } from 'react-native';
 import { Heart, Trash2, FolderPlus, Package, Send } from 'lucide-react-native';
-import { colors, radii, spacing } from '../theme/tokens';
-import type { WishlistItem } from '../types/wishlist';
+import { colors, radii, spacing } from '../../theme/tokens';
+import type { WishlistItem } from '../../types/wishlist';
 import WishlistStatusBadge from './WishlistStatusBadge';
 
 interface WishlistCardProps {

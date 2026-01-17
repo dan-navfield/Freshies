@@ -18,7 +18,7 @@ import {
   Alert,
 } from 'react-native';
 import { X, Search, Filter, ChevronDown, AlertCircle, CheckCircle2, Info } from 'lucide-react-native';
-import { colors, spacing, radii } from '../theme/tokens';
+import { colors, spacing, radii } from '../../theme/tokens';
 import { searchProducts as searchProductsFrontend } from '../services/api';
 import { scanProduct } from '../services/freshiesBackend';
 

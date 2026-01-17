@@ -15,9 +15,9 @@ import {
     Image,
 } from 'react-native';
 import { X, Send, Heart } from 'lucide-react-native';
-import { colors, radii, spacing } from '../theme/tokens';
-import { APPROVAL_REQUEST_REASONS } from '../types/wishlist';
-import type { WishlistItem } from '../types/wishlist';
+import { colors, radii, spacing } from '../../theme/tokens';
+import { APPROVAL_REQUEST_REASONS } from '../../types/wishlist';
+import type { WishlistItem } from '../../types/wishlist';
 
 interface ApprovalRequestModalProps {
     visible: boolean;

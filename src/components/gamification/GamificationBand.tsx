@@ -2,8 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Star, ChevronRight } from 'lucide-react-native';
-import { colors, spacing, radii } from '../theme/tokens';
-import { useChildProfile } from '../contexts/ChildProfileContext';
+import { colors, spacing, radii } from '../../theme/tokens';
+import { useChildProfile } from '../../contexts/ChildProfileContext';
 import { 
   getUserPoints, 
   getUserAchievements, 
@@ -11,7 +11,7 @@ import {
   type UserPoints,
   type UserAchievement,
   type Streak
-} from '../services/gamificationService';
+} from '../../services/gamificationService';
 
 /**
  * Reusable Gamification Band Component

@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { View, Text, Modal, StyleSheet, Animated, Dimensions } from 'react-native';
 import { Flame, Award } from 'lucide-react-native';
-import { colors, spacing, radii } from '../theme/tokens';
+import { colors, spacing, radii } from '../../theme/tokens';
 
 const { width } = Dimensions.get('window');
 

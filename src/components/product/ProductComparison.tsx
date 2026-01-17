@@ -5,8 +5,8 @@
 
 import { View, Text, ScrollView, Image, TouchableOpacity, StyleSheet } from 'react-native';
 import { X, Star, AlertCircle, CheckCircle } from 'lucide-react-native';
-import { colors, spacing, radii } from '../theme/tokens';
-import type { ComparisonProduct } from '../types/comparison';
+import { colors, spacing, radii } from '../../theme/tokens';
+import type { ComparisonProduct } from '../../types/comparison';
 
 interface ProductComparisonProps {
   products: ComparisonProduct[];

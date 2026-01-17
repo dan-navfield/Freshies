@@ -13,9 +13,9 @@
 
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
-import { routineHistoryService, CalendarDayData, StreakInfo, MonthlyStats } from '../services/routineHistoryService';
-import { useChildProfile } from '../contexts/ChildProfileContext';
-import { colors, spacing, radii } from '../theme/tokens';
+import { routineHistoryService, CalendarDayData, StreakInfo, MonthlyStats } from '../../services/routineHistoryService';
+import { useChildProfile } from '../../contexts/ChildProfileContext';
+import { colors, spacing, radii } from '../../theme/tokens';
 
 export const RoutineCalendarExample: React.FC = () => {
   const { childProfile } = useChildProfile();

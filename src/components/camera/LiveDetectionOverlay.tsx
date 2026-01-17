@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Animated } from 'react-native';
 import { Package, ChevronRight, Sparkles, X } from 'lucide-react-native';
-import { colors, spacing, radii } from '../theme/tokens';
+import { colors, spacing, radii } from '../../theme/tokens';
 import { LiveDetectionResult } from '../services/camera/liveDetectionService';
 
 interface LiveDetectionOverlayProps {

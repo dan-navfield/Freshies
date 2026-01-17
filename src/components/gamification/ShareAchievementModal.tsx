@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, Modal, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
 import { X, Users, Heart, Sparkles } from 'lucide-react-native';
-import { colors, radii, spacing } from '../theme/tokens';
+import { colors, radii, spacing } from '../../theme/tokens';
 import { shareAchievement } from '../services/familyCircleService';
 import { CELEBRATION_MESSAGES } from '../services/familyCircleService';
 import BadgeIcon from './badges/BadgeIcon';

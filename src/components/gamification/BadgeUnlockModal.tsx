@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { View, Text, Modal, StyleSheet, Animated, Dimensions, TouchableOpacity } from 'react-native';
 import { Trophy, Star, Zap, X } from 'lucide-react-native';
-import { colors, spacing, radii } from '../theme/tokens';
+import { colors, spacing, radii } from '../../theme/tokens';
 import BadgeIcon from './badges/BadgeIcon';
 import { getAchievementRarity } from '../utils/achievementIcons';
 

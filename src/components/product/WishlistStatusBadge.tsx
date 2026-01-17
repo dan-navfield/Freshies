@@ -6,8 +6,8 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Clock, CheckCircle, XCircle, Heart, Package } from 'lucide-react-native';
-import { colors, radii, spacing } from '../theme/tokens';
-import type { WishlistStatus } from '../types/wishlist';
+import { colors, radii, spacing } from '../../theme/tokens';
+import type { WishlistStatus } from '../../types/wishlist';
 
 interface WishlistStatusBadgeProps {
     status: WishlistStatus;

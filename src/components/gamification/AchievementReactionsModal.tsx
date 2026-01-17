@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, Modal, StyleSheet, TouchableOpacity, ScrollView, Image } from 'react-native';
 import { X } from 'lucide-react-native';
-import { colors, spacing, radii } from '../theme/tokens';
+import { colors, spacing, radii } from '../../theme/tokens';
 import { getAchievementReactions, REACTION_TYPES } from '../services/familyCircleService';
 
 interface Reaction {

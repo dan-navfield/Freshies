@@ -11,10 +11,10 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { X, Search, Package, Clock, Heart, Sparkles } from 'lucide-react-native';
-import { useAuth } from '../contexts/AuthContext';
-import { colors, spacing, radii } from '../theme/tokens';
-import { supabase } from '../lib/supabase';
-import { searchProducts } from '../services/api/productLookup';
+import { useAuth } from '../../contexts/AuthContext';
+import { colors, spacing, radii } from '../../theme/tokens';
+import { supabase } from '../../lib/supabase';
+import { searchProducts } from '../../services/api/productLookup';
 
 interface Product {
   id: string;

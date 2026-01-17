@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Modal, Image, ScrollView, Dimensions } from 'react-native';
 import { X, Check, Sparkles, Sun, Moon, Droplets, Smile } from 'lucide-react-native';
 import { manipulateAsync, SaveFormat } from 'expo-image-manipulator';
-import { colors, spacing, radii } from '../theme/tokens';
+import { colors, spacing, radii } from '../../theme/tokens';
 
 const { width, height } = Dimensions.get('window');
 

@@ -15,14 +15,14 @@ import {
     ActivityIndicator,
 } from 'react-native';
 import { X, Check, FolderPlus, Plus } from 'lucide-react-native';
-import { colors, radii, spacing } from '../theme/tokens';
+import { colors, radii, spacing } from '../../theme/tokens';
 import {
     getWishlistGroups,
     createWishlistGroup,
     addItemToGroup,
     removeItemFromGroup,
-} from '../services/wishlistService';
-import { WishlistGroup, WishlistItem, CreateWishlistGroupDTO } from '../types/wishlist';
+} from '../../services/wishlistService';
+import { WishlistGroup, WishlistItem, CreateWishlistGroupDTO } from '../../types/wishlist';
 
 interface AddToGroupModalProps {
     visible: boolean;

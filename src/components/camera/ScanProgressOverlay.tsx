@@ -7,7 +7,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, Modal, ActivityIndicator, Dimensions } from 'react-native';
 import { Check, CircleDashed } from 'lucide-react-native';
-import { colors, spacing, radii } from '../theme/tokens';
+import { colors, spacing, radii } from '../../theme/tokens';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
