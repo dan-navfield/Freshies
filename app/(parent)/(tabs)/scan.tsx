@@ -13,7 +13,7 @@ import { identifyProductFromImage } from '../../../src/services/ai/aiVisionProdu
 import ProductSearchModal from '../../../src/components/product/ProductSearchModal';
 import ScanProgressOverlay, { ScanStep } from '../../../src/components/camera/ScanProgressOverlay';
 import { useAuth } from '../../../src/contexts/AuthContext';
-import ChildScanScreen from '../(child)/(tabs)/scan';
+import ChildScanScreen from '../../(child)/(tabs)/scan';
 
 const { width, height } = Dimensions.get('window');
 const SCAN_AREA_SIZE = width * 0.85;
