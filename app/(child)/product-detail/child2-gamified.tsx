@@ -9,7 +9,7 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image } from 'rea
 import { Stack, router } from 'expo-router';
 import { colors, radii, spacing } from '../../../src/theme/tokens';
 import { ChevronLeft, Award, Zap, Star, Sparkles, Trophy, Lock } from 'lucide-react-native';
-import { sampleProductExcellent, getScoreColor } from './mockProductData';
+import { sampleProductExcellent, getScoreColor } from '../../../src/data/mockProductData';
 
 const product = sampleProductExcellent;
 
