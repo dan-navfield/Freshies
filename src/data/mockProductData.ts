@@ -3,7 +3,7 @@
  * Comprehensive sample data showcasing all available product fields
  */
 
-import { colors } from '../../../src/theme/tokens';
+import { colors } from '../theme/tokens';
 
 // ============================================
 // TYPES
