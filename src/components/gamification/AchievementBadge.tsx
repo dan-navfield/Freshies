@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Share2 } from 'lucide-react-native';
 import { colors, spacing, radii } from '../../theme/tokens';
-import BadgeIcon from './badges/BadgeIcon';
+import BadgeIcon from '../badges/BadgeIcon';
 
 interface AchievementBadgeProps {
   iconType: 'star' | 'trophy' | 'medal' | 'shield' | 'crown' | 'target' | 'book' | 'lightbulb' | 'heart' | 'fire' | 'sparkle' | 'rocket' | 'flag' | 'gem' | 'wand';
